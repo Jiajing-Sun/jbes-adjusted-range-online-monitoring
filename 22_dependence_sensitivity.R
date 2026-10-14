@@ -111,13 +111,19 @@ source(file.path(ROOT, "02_methods.R"))
 source(file.path(ROOT, "10_dgps_mean.R"))
 source(file.path(ROOT, "30_construct_psi.R"))
 source(file.path(ROOT, "40_calibration.R"))
+source(file.path(ROOT, "08_mc_audit.R"))
 
 msg("Dependence sensitivity experiment starting...")
 
 rows <- list()
+event_rows <- paired_rows <- calibration_rows <- list()
+record_dir <- file.path(RES_DIR, "dependence_records")
+dir.create(record_dir, recursive = TRUE, showWarnings = FALSE)
 cnt <- 0L
 
-# --- (A) VAR persistence sensitivity (use DGP2 structure)
+# --- (A) VAR persistence sensitivity: Psi = phi * I_2 as in the paper.
+# Keep the Toeplitz innovation covariance, but set the cross-lag term to zero.
+# An extra 0.1 cross-lag term would make phi=0.9 a unit-root design.
 for (phi in PHI_GRID) {
   for (gamma in GAMMA_GRID) {
     for (bf in BREAK_FRAC) {
@@ -130,7 +136,7 @@ for (phi in PHI_GRID) {
       gen_psi_null <- function(i) {
         X <- sim_var1_dgp(
           dgp = "DGP2", n = m + mT, m_train = m, q = q,
-          burnin = 300, phi = phi, cross = 0.1, rho = 0.1
+          burnin = 300, phi = phi, cross = 0, rho = 0.1
         )
         make_mean_psi(X, m, T)$psi
       }
@@ -148,7 +154,7 @@ for (phi in PHI_GRID) {
       one_rep <- function(i) {
         X <- sim_var1_dgp(
           dgp = "DGP2", n = m + mT, m_train = m, q = q,
-          burnin = 300, phi = phi, cross = 0.1, rho = 0.1
+          burnin = 300, phi = phi, cross = 0, rho = 0.1
         )
         Y <- apply_mean_change(X, m, T,
           k_star = k_star, Delta = DELTA,
@@ -166,6 +172,23 @@ for (phi in PHI_GRID) {
       )
       stop_mat <- do.call(rbind, reps)
       colnames(stop_mat) <- METHODS
+      # Preserve first crossings and paired uncertainty on the same paths.
+      design <- data.frame(
+        exp = "VAR_phi", phi = phi, garch_persist = NA_real_, m = m, T = T,
+        gamma = gamma, break_frac = bf, k_star = k_star, N_CAL = N_CAL,
+        seed_cal = SEED_BASE + 1000L + as.integer(phi * 100) + as.integer(100 * gamma), seed_eval = SEED_BASE + 5000L + as.integer(phi * 100) + cnt
+      )
+      audit <- mc_event_audit(stop_mat, k_star, mT)
+      event_rows[[length(event_rows) + 1L]] <- cbind(design, audit$events)
+      paired_rows[[length(paired_rows) + 1L]] <- cbind(design, audit$paired)
+      calibration_rows[[length(calibration_rows) + 1L]] <- cbind(
+        design,
+        c_hat_df[, c("method", "c_hat", "alpha")]
+      )
+      saveRDS(
+        list(design = design, stops = stop_mat, thresholds = c_hat_map),
+        file.path(record_dir, paste0(tag, ".rds"))
+      )
 
       for (method in METHODS) {
         stops <- stop_mat[, method]
@@ -242,6 +265,23 @@ for (persist in GARCH_PERSIST) {
       )
       stop_mat <- do.call(rbind, reps)
       colnames(stop_mat) <- METHODS
+      # Preserve first crossings and paired uncertainty on the same paths.
+      design <- data.frame(
+        exp = "GARCH_persist", phi = NA_real_, garch_persist = persist, m = m, T = T,
+        gamma = gamma, break_frac = bf, k_star = k_star, N_CAL = N_CAL,
+        seed_cal = SEED_BASE + 20000L + as.integer(persist * 100) + as.integer(100 * gamma), seed_eval = SEED_BASE + 30000L + as.integer(persist * 100) + cnt
+      )
+      audit <- mc_event_audit(stop_mat, k_star, mT)
+      event_rows[[length(event_rows) + 1L]] <- cbind(design, audit$events)
+      paired_rows[[length(paired_rows) + 1L]] <- cbind(design, audit$paired)
+      calibration_rows[[length(calibration_rows) + 1L]] <- cbind(
+        design,
+        c_hat_df[, c("method", "c_hat", "alpha")]
+      )
+      saveRDS(
+        list(design = design, stops = stop_mat, thresholds = c_hat_map),
+        file.path(record_dir, paste0(tag, ".rds"))
+      )
 
       for (method in METHODS) {
         stops <- stop_mat[, method]
@@ -268,6 +308,9 @@ for (persist in GARCH_PERSIST) {
 df <- do.call(rbind, rows)
 out_path <- file.path(RES_DIR, "dependence_sensitivity_results.csv")
 write.csv(df, out_path, row.names = FALSE)
+write.csv(do.call(rbind, event_rows), file.path(RES_DIR, "dependence_events.csv"), row.names = FALSE)
+write.csv(do.call(rbind, paired_rows), file.path(RES_DIR, "dependence_paired.csv"), row.names = FALSE)
+write.csv(do.call(rbind, calibration_rows), file.path(RES_DIR, "dependence_calibration.csv"), row.names = FALSE)
 
 msg("Saved: ", out_path)
 msg("DONE.")

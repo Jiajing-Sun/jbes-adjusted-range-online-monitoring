@@ -122,11 +122,11 @@ source(file.path(ROOT, "02_methods.R"))
 source(file.path(ROOT, "10_dgps_mean.R"))
 source(file.path(ROOT, "30_construct_psi.R"))
 source(file.path(ROOT, "40_calibration.R"))
+source(file.path(ROOT, "08_mc_audit.R"))
 
 msg("Training contamination experiment starting...")
 
-# Apply contamination only to the TRAINING window (monitoring is clean under H0)
-# Apply contamination only to the TRAINING window (monitoring is clean under H0)
+# Apply contamination only to the TRAINING window; monitoring returns to the original mean under H0.
 apply_training_contamination <- function(X, m, l_contam, B, shift_vec) {
   Y <- X
   if (l_contam <= 0) return(Y)
@@ -157,9 +157,18 @@ apply_training_contamination <- function(X, m, l_contam, B, shift_vec) {
 }
 
 rows <- list()
+null_rows <- calibration_rows <- event_rows <- paired_rows <- list()
+record_dir <- file.path(RES_DIR, "training_contamination_records")
+dir.create(record_dir, recursive = TRUE, showWarnings = FALSE)
 cnt <- 0L
 
 for (gamma in GAMMA_GRID) {
+  # These operational thresholds are fixed within a gamma block.
+  c_asym_map <- c(
+    RSMS = get_critical_value_rsms(q, T, gamma, ALPHA),
+    SSMS = get_critical_value_ssms(q, T, gamma, ALPHA),
+    CSMS = get_critical_value_csms(q, T, gamma, ALPHA)
+  )
   for (regime in c("mild", "fraction")) {
     l_contam <- if (regime == "mild") l_mild else l_frac
 
@@ -178,12 +187,9 @@ for (gamma in GAMMA_GRID) {
         psi <- make_mean_psi(Y, m, T)$psi
         sapply(METHODS, function(method) {
           Mvec <- compute_path(method, psi, m, T, gamma)
-          c_asym <- switch(method,
-            "RSMS" = get_critical_value_rsms(d = q, T = T, gamma = gamma, alpha_level = ALPHA),
-            "SSMS" = get_critical_value_ssms(d = q, T = T, gamma = gamma, alpha_level = ALPHA),
-            "CSMS" = get_critical_value_csms(d = q, T = T, gamma = gamma, alpha_level = ALPHA)
-          )
-          as.integer(first_exceed(Mvec, c_asym) <= mT)
+          # Retain the maximum to evaluate both threshold rules on these
+          # same independent null paths after calibration has completed.
+          max(Mvec)
         })
       }
       reps_size <- par_lapply_safe(1:N_SIZE, one_rep_size,
@@ -198,7 +204,7 @@ for (gamma in GAMMA_GRID) {
           regime = regime, l_contam = l_contam, B = B,
           gamma = gamma, break_frac = NA, k_star = NA,
           method = method,
-          size = mean(mat_size[, method]),
+          size = mean(mat_size[, method] > c_asym_map[[method]]),
           power_adj = NA, PFA_pre_adj = NA, DP_post_adj = NA, CADD_adj = NA,
           ARL_adj = NA, ADD_adj = NA,
           N = N_SIZE,
@@ -223,6 +229,30 @@ for (gamma in GAMMA_GRID) {
         tag = tag
       )
       c_hat_map <- setNames(c_hat_df$c_hat, c_hat_df$method)
+      design <- data.frame(
+        regime = regime, l_contam = l_contam, B = B, gamma = gamma,
+        m = m, T = T, seed_null = SEED_BASE + 1000L * cnt,
+        seed_cal = SEED_BASE + 50000L + 1000L * cnt, N_CAL = N_CAL
+      )
+      calibration_rows[[length(calibration_rows) + 1L]] <- cbind(
+        design,
+        c_hat_df[, c("method", "c_hat", "alpha")]
+      )
+      # Calibration reproduces the same training-only contamination and
+      # subsequent return to the original mean. Null evaluation is separate.
+      for (method in METHODS) {
+        probability <- mean(mat_size[, method] > c_hat_map[[method]])
+        null_rows[[length(null_rows) + 1L]] <- cbind(design, data.frame(
+          method = method, alpha = ALPHA, critical = c_hat_map[[method]],
+          rejection_count = sum(mat_size[, method] > c_hat_map[[method]]),
+          n_eval = N_SIZE, size = probability,
+          standard_error = sqrt(probability * (1 - probability) / N_SIZE)
+        ))
+      }
+      saveRDS(
+        list(design = design, maxima = mat_size, thresholds = c_hat_map),
+        file.path(record_dir, paste0(tag, "_null.rds"))
+      )
 
       # --------------------------------------------------------
       # (3) POWER under monitoring break with the same contaminated training regime
@@ -250,6 +280,17 @@ for (gamma in GAMMA_GRID) {
         )
         mat_stop <- do.call(rbind, reps_pow)
         colnames(mat_stop) <- METHODS
+        audit <- mc_event_audit(mat_stop, k_star, mT)
+        alternative_design <- cbind(design, data.frame(
+          break_frac = bf, k_star = k_star,
+          seed_alt = SEED_BASE + 80000L + 1000L * cnt + as.integer(100 * bf)
+        ))
+        event_rows[[length(event_rows) + 1L]] <- cbind(alternative_design, audit$events)
+        paired_rows[[length(paired_rows) + 1L]] <- cbind(alternative_design, audit$paired)
+        saveRDS(
+          list(design = alternative_design, stops = mat_stop, thresholds = c_hat_map),
+          file.path(record_dir, paste0(tag, "_bf", bf, "_alternative.rds"))
+        )
 
         for (method in METHODS) {
           stops <- mat_stop[, method]
@@ -279,6 +320,10 @@ for (gamma in GAMMA_GRID) {
 df <- do.call(rbind, rows)
 out_path <- file.path(RES_DIR, "training_contamination_results.csv")
 write.csv(df, out_path, row.names = FALSE)
+write.csv(do.call(rbind, null_rows), file.path(RES_DIR, "training_contamination_calibrated_size.csv"), row.names = FALSE)
+write.csv(do.call(rbind, calibration_rows), file.path(RES_DIR, "training_contamination_calibration.csv"), row.names = FALSE)
+write.csv(do.call(rbind, event_rows), file.path(RES_DIR, "training_contamination_events.csv"), row.names = FALSE)
+write.csv(do.call(rbind, paired_rows), file.path(RES_DIR, "training_contamination_paired.csv"), row.names = FALSE)
 
 msg("Saved: ", out_path)
 msg("DONE.")

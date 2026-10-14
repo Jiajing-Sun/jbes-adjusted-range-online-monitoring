@@ -97,7 +97,7 @@ Rscript reproduce_reported.R --stage dgp_confirmation_profile
 Rscript reproduce_reported.R --stage dgp_report
 ```
 
-Moderate-dimensional and persistent-training checkpoints include design and implementation manifests. A mismatch stops the run instead of reusing stale paths. Mean innovations use compiled scalar recursions in an orthogonal eigenbasis; direct-recursion checks confirm the same random draws and agreement to numerical precision.
+PAR null, moderate-dimensional and persistent-training checkpoints include design and implementation manifests. A mismatch stops the run instead of reusing stale paths. Mean innovations use compiled scalar recursions in an orthogonal eigenbasis; direct-recursion checks confirm the same random draws and agreement to numerical precision.
 
 The optional `JBES_RESUME_VERIFIED=1` switch in the mean and bivariate scripts is for locally saved checkpoints only after the design, seeds, implementation and thresholds have been verified unchanged. It is off by default. Do not reuse arbitrary earlier output.
 
