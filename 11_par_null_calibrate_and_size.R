@@ -104,6 +104,43 @@ source(file.path(ROOT, "02_methods.R"))
 source(file.path(ROOT, "20_dgps_par1.R"))
 source(file.path(ROOT, "40_calibration.R"))
 
+# Cache whole design phases so a numerical interruption does not erase
+# completed independent calibration or null-evaluation samples. Reuse is
+# allowed only when the design, worker streams and implementation match.
+CHECK_DIR <- file.path(RES_DIR, "par_null_checkpoints")
+dir.create(CHECK_DIR, recursive = TRUE, showWarnings = FALSE)
+manifest <- list(
+  m = M_GRID, T = T_GRID, gamma = GAMMA_GRID, alpha = ALPHA_SIZE,
+  parameter = c(ALPHA1, LAMBDA1), N = N_MC, N_CAL = N_CAL, workers = N_CORES,
+  seed = SEED_BASE, package = as.character(packageVersion("aersn")),
+  source = unname(tools::md5sum(c(
+    file.path(ROOT, c(
+      "00_utils.R",
+      "02_methods.R", "07_aersn_backend.R", "20_dgps_par1.R", "40_calibration.R"
+    )),
+    file.path(ROOT, "11_par_null_calibrate_and_size.R")
+  ))),
+  reference = unname(tools::md5sum(file.path(RES_DIR, "affine_finite_critical_values.csv")))
+)
+manifest_path <- file.path(CHECK_DIR, "manifest.rds")
+if (file.exists(manifest_path)) {
+  if (!identical(readRDS(manifest_path), manifest))
+    stop("PAR null checkpoint manifest differs; use a fresh results directory.")
+} else {
+  if (length(list.files(CHECK_DIR, pattern = "\\.rds$")))
+    stop("Unverified PAR null checkpoints found; preserve them before restarting.")
+  saveRDS(manifest, manifest_path)
+}
+checkpoint_par_null <- function(tag, expression) {
+  path <- file.path(CHECK_DIR, paste0(tag, ".rds"))
+  if (file.exists(path)) return(readRDS(path))
+  value <- force(expression)
+  temporary <- paste0(path, ".tmp")
+  saveRDS(value, temporary)
+  if (!file.rename(temporary, path)) stop("Cannot save PAR null checkpoint: ", path)
+  value
+}
+
 msg("Starting NULL simulations (PAR(1))")
 
 size_rows <- list()
@@ -155,8 +192,11 @@ for (m in M_GRID) {
         out
       }
 
-      reps <- par_lapply_safe(1:N_MC, one_rep_size,
-        n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt
+      reps <- checkpoint_par_null(
+        paste0(tag, "_size"),
+        par_lapply_safe(1:N_MC, one_rep_size,
+          n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt
+        )
       )
       stop_mat <- do.call(rbind, reps)
 
@@ -180,12 +220,15 @@ for (m in M_GRID) {
         par1_score_matrix(X, alpha = fit$alpha, lambda = fit$lambda)
       }
 
-      calib <- calibrate_critical_values(
-        METHODS = METHODS, gen_psi = gen_psi,
-        m = m, T = T, gamma = gamma,
-        alpha = 0.05, N_CAL = N_CAL,
-        n_cores = N_CORES, seed = SEED_BASE + 9999L + 1000L * cnt,
-        tag = tag
+      calib <- checkpoint_par_null(
+        paste0(tag, "_calibration"),
+        calibrate_critical_values(
+          METHODS = METHODS, gen_psi = gen_psi,
+          m = m, T = T, gamma = gamma,
+          alpha = 0.05, N_CAL = N_CAL,
+          n_cores = N_CORES, seed = SEED_BASE + 9999L + 1000L * cnt,
+          tag = tag
+        )
       )
       calib_rows[[length(calib_rows) + 1L]] <- calib
     }

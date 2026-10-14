@@ -65,7 +65,12 @@ aersn_gauge_evaluator <- function(h) {
     return(function(Z) as.numeric(abs(as.matrix(Z)) * unit))
   }
   if (h$q == 2L) {
-    V <- aersn::aersn_vertices(h);W <- V[c(2:nrow(V), 1), , drop = FALSE];E <- W - V
+    V <- aersn::aersn_vertices(h)
+    # Pairwise differences can produce vertices separated only by rounding.
+    # Rebuild their convex cyclic order before forming normals, removing tiny
+    # backtracking edges without regularizing the normalizing hull.
+    V <- V[chull(V[, 1L], V[, 2L]), , drop = FALSE]
+    W <- V[c(2:nrow(V), 1), , drop = FALSE];E <- W - V
     normals <- cbind(E[, 2], -E[, 1]);c0 <- rowSums(normals * V)
     if (any(c0 <= 0)) {
       normals <- -normals;c0 <- -c0
