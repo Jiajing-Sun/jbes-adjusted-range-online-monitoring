@@ -72,7 +72,7 @@ make_table <- function(T0, outfile, label) {
   cap <- paste0(
     "{\\color{blue}CSMS bandwidth-sensitivity check for DGP1 with $m=250$, $\\gamma=0.15$, and abrupt changes at horizon $T=",
     T0,
-    "$. The CSMS bandwidth is $L_{\\eta}=\\lceil \\eta \\cdot 1.06 m^{1/5}\\rceil$. Raw size uses the asymptotic critical values already reported in the paper; the early-break alternative uses $\\Delta=0.50$, and the late-break alternative uses $\\Delta=1.50$. The last row reports the corresponding tuning-free RSMS benchmark.}"
+    "$. The lag index is $L_{\\eta}=\\lceil \\eta \\cdot \\lceil 1.06 m^{1/5}\\rceil\\rceil$, with kernel bandwidth $h_{\\eta}=L_{\\eta}+1$. Raw size uses the asymptotic critical values already reported in the paper; the early-break alternative uses $\\Delta=0.50$, and the late-break alternative uses $\\Delta=1.50$. The last row reports the corresponding tuning-free RSMS benchmark.}"
   )
 
   tex <- c(

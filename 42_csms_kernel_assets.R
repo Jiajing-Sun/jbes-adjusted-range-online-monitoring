@@ -73,7 +73,7 @@ make_table <- function(T0, outfile, label) {
   cap <- paste0(
     "{\\color{blue}CSMS kernel-sensitivity check for DGP1 with $m=250$, $\\gamma=0.15$, and abrupt changes at horizon $T=",
     T0,
-    "$. The bandwidth is fixed at the benchmark choice $L_{0}=\\lceil 1.06 m^{1/5}\\rceil$, while the HAC kernel varies across Bartlett, Parzen, and quadratic spectral choices. Raw size uses the asymptotic critical values already reported in the paper; the early-break alternative uses $\\Delta=0.50$, and the late-break alternative uses $\\Delta=1.50$. The last row reports the corresponding tuning-free RSMS benchmark.}"
+    "$. The kernel bandwidth is fixed at $h=L_0+1$, where $L_{0}=\\lceil 1.06 m^{1/5}\\rceil$, while the HAC kernel varies across Bartlett, Parzen, and quadratic spectral choices. Raw size uses the asymptotic critical values already reported in the paper; the early-break alternative uses $\\Delta=0.50$, and the late-break alternative uses $\\Delta=1.50$. The last row reports the corresponding tuning-free RSMS benchmark.}"
   )
 
   tex <- c(

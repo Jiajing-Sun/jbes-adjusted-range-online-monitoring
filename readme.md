@@ -138,3 +138,6 @@ Obtain the input under the provider's license. No raw data are included. Fixed-s
 The manuscript and full-study outputs are maintained separately. Public source availability does not imply that every new full-study run has finished. No public reuse license has been selected.
 
 Run `Rscript 51_containment_reference_audit.R` after generating the finite and open-end references to reproduce the per-dimension threshold checks. A passed necessary bound is not evidence of attainable containment.
+
+Run `Rscript 53_hac_record_audit.R` after the mean, bandwidth, kernel and automatic-bandwidth stages to reconcile their saved first-crossing records and threshold quantiles. The fixed-tuning CSMS samples are independent of the baseline RSMS samples, so this report uses independent-sample comparison errors. It preserves each method's own post-change detection event for CADD and conditions on estimated thresholds.
+The same audit reports paired errors for the automatic selectors, which share evaluation paths. Fixed-tuning and automatic-selector comparison errors are therefore kept separate.
