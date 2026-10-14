@@ -81,6 +81,7 @@ fmt_num <- function(x) ifelse(is.na(x), "--", sprintf("%.3f", x))
 method_greys <- c(RSMS = "black", SSMS = "black", CSMS = "black")
 method_linetypes <- c(RSMS = "solid", SSMS = "longdash", CSMS = "dotdash")
 shift_shapes <- c(dense = 16, sparse = 17)
+method_shapes <- c(RSMS = 16, SSMS = 17, CSMS = 15)
 
 make_size_table <- function() {
   lines <- c(
@@ -115,8 +116,13 @@ make_size_table <- function() {
   msg("Wrote: ", out)
 }
 
-plot_metric <- function(metric, ylab, file_stub) {
+plot_metric <- function(metric, ylab, file_stub, shift_type = NULL) {
   dt_plot <- copy(dt_pow)
+  # Separate dense/sparse files keep only three method curves in each panel.
+  # The combined file is retained for compatibility with earlier local drafts.
+  if (!is.null(shift_type)) dt_plot <- dt_plot[shift == shift_type]
+  dt_plot[, shape_key := if (is.null(shift_type)) shift else method]
+  shape_values <- if (is.null(shift_type)) shift_shapes else method_shapes
   dt_plot[, row_label := fifelse(
     abs(gamma) < 1e-12 & break_frac < 0.5, "g0_early",
     fifelse(
@@ -134,7 +140,7 @@ plot_metric <- function(metric, ylab, file_stub) {
   base_plot <- function(subdt, row_title, ylim = NULL) {
     p_row <- ggplot(
       subdt,
-      aes(x = Delta, y = .data[[metric]], colour = method, linetype = method, shape = shift, group = interaction(method, shift))
+      aes(x = Delta, y = .data[[metric]], colour = method, linetype = method, shape = shape_key, group = interaction(method, shift))
     ) +
       geom_line(linewidth = 0.75) +
       geom_point(size = 2.1) +
@@ -143,22 +149,25 @@ plot_metric <- function(metric, ylab, file_stub) {
       scale_x_continuous(breaks = sort(unique(dt_pow$Delta))) +
       scale_colour_manual(values = method_greys) +
       scale_linetype_manual(values = method_linetypes) +
-      scale_shape_manual(values = shift_shapes) +
-      guides(colour = guide_legend(override.aes = list(shape = NA))) +
+      scale_shape_manual(values = shape_values) +
+      guides(colour = guide_legend(
+        override.aes =
+          if (is.null(shift_type)) list(shape = NA) else list()
+      )) +
       labs(
         title = row_title,
         x = "\u0394",
         y = ylab,
         colour = "Method",
         linetype = "Method",
-        shape = "Shift type"
+        shape = if (is.null(shift_type)) "Shift type" else "Method"
       ) +
-      theme_bw(base_size = 12) +
+      theme_bw(base_size = if (is.null(shift_type)) 12 else 14) +
       theme(
         legend.position = "bottom",
         legend.key.width = grid::unit(1.4, "cm"),
-        strip.text = element_text(size = 10),
-        plot.title = element_text(size = 11, face = "bold"),
+        strip.text = element_text(size = if (is.null(shift_type)) 10 else 12),
+        plot.title = element_text(size = if (is.null(shift_type)) 11 else 13, face = "bold"),
         panel.grid.minor = element_blank()
       )
     p_row
@@ -188,12 +197,22 @@ plot_metric <- function(metric, ylab, file_stub) {
     theme(legend.position = "bottom")
 
   out <- file.path(FIG_DIR, paste0(file_stub, ".pdf"))
-  ggsave(out, p, width = 10.8, height = 9.2)
+  ggsave(out, p, width = if (is.null(shift_type)) 10.8 else 9.2, height = 9.2)
   msg("Wrote: ", out)
 }
 
 make_size_table()
 plot_metric("DP_post_adj", expression(DP[post]), "moderate_power_adj")
 plot_metric("CADD_adj", "CADD", "moderate_ADD_adj")
+for (shift_type in c("dense", "sparse")) {
+  plot_metric(
+    "DP_post_adj", expression(DP[post]),
+    paste0("moderate_power_adj_", shift_type), shift_type
+  )
+  plot_metric(
+    "CADD_adj", "CADD",
+    paste0("moderate_ADD_adj_", shift_type), shift_type
+  )
+}
 
 msg("DONE.")
