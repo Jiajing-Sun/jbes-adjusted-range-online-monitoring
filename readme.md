@@ -59,6 +59,7 @@ The driver fixes production replication and worker counts to preserve recorded s
 | `33_dgp_exploration.R` | Complete DGP screening grid and independent confirmation with automatic HAC controls |
 | `50_focused_dgp_search.R` | Follow-up model, weight and direction screening with a frozen independent confirmation |
 | `51_containment_reference_audit.R` | All 400 necessary threshold-bound checks for uniform hull containment |
+| `52_focused_dgp_report.R` | Complete frozen-candidate results and paired differences, including automatic HAC controls |
 | `34_dgp_comparison_report.R` | Confirmation report for scenarios frozen by screening, retaining automatic-HAC comparisons and null checks |
 | `32_theory_assets.R` | Tables and plots from saved theory-check outputs |
 | `08_mc_audit.R` | First-crossing counts and paired Monte Carlo uncertainty |
@@ -105,7 +106,10 @@ The additional `dgp_focused_screen` stage was designed after inspecting the earl
 ```sh
 Rscript reproduce_reported.R --stage dgp_focused_screen
 Rscript reproduce_reported.R --stage dgp_focused_confirmation
+Rscript 52_focused_dgp_report.R
 ```
+
+The optional `JBES_DGP_REP_OFFSET` in `50_focused_dgp_search.R` shifts each phase to disjoint replication seed indices for an independent repeat. Use a new `JBES_FOCUS_OUTPUT` prefix and copy the frozen `selected_dgps.csv` into its `_screen` directory; never reuse an existing manifest with changed counts or offsets. The fixed profile follow-up uses ID `profile_L16_g0.00`, `m=500`, offset 30000, 20,000 calibration paths and 10,000 paths per evaluation phase. Its alternative remains the one frozen in the original selection file.
 
 The focused search uses 1,000 calibration, 1,000 independent null and 1,000 alternative paths per screening setting. Confirmation uses 10,000 calibration, 5,000 null and 5,000 alternative paths. Model-specific thresholds are oracle simulation comparisons. Every method uses the same evaluation paths; first crossings distinguish pre-change alarms, post-change detections and no crossing. Paired errors condition on the estimated thresholds. Phase checkpoints include source hashes, design, replication counts and package versions and refuse inconsistent reuse.
 

@@ -29,6 +29,9 @@ is_confirmation <- phase_name == 'confirm'
 n_cal <- env_int('JBES_DGP_CAL', if (is_confirmation) 10000L else 1000L)
 n_eval <- env_int('JBES_DGP_EVAL', if (is_confirmation) 5000L else 1000L)
 n_cores <- env_int('JBES_N_CORES', 2L)
+# Optional disjoint seed indices for a prespecified independent repeat.
+replication_offset <- env_int('JBES_DGP_REP_OFFSET', 0L)
+stopifnot(replication_offset >= 0L, max(n_cal, n_eval) + replication_offset < 100000L)
 training_lengths <- env_num_vec('JBES_DGP_M', if (is_confirmation) c(250, 500) else 250)
 stopifnot(n_cal < 100000L, n_eval < 100000L, all(training_lengths %in% c(100, 250, 500)))
 dimension <- 2L
@@ -89,6 +92,7 @@ source_files <- c(
 manifest <- list(
   phase = phase_name, models = dgp_grid, scenarios = all_scenarios,
   selected = selected, n_cal = n_cal, n_eval = n_eval, m = training_lengths, workers = n_cores,
+  replication_offset = replication_offset,
   alpha = alpha, horizon = horizon, burn_in = burn_in, methods = method_names,
   source_md5 = tools::md5sum(source_files), R = R.version.string,
   aersn = as.character(packageVersion('aersn')),
@@ -166,7 +170,7 @@ one_path <- function(replication, sample_phase, design, m, thresholds = NULL) {
   # The follow-up block is disjoint from the original three screening batches.
   seed <- 700000000 + as.integer(is_confirmation) * 1000000000 +
     design$index * 10000000 + match(m, c(100, 250, 500)) * 1000000 +
-    sample_phase * 100000 + replication
+    sample_phase * 100000 + replication + replication_offset
   RNGkind('Mersenne-Twister', 'Inversion', 'Rejection')
   set.seed(seed)
   n_monitor <- as.integer(m * horizon)
