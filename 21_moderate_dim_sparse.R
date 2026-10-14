@@ -172,6 +172,9 @@ for (q in Q_GRID) {
       )
       make_mean_psi(X, m, T)$psi
     }
+    # Child workers inherit this label, so LP recoveries can be counted
+    # separately for calibration, independent null evaluation and power.
+    Sys.setenv(JBES_LP_CONTEXT = paste(tag_cal, 'calibration', sep = '|'))
     c_hat_df <- checkpoint_design(paste0(tag_cal, "_cal"), calibrate_critical_values(
       METHODS = METHODS, gen_psi = gen_psi_null,
       m = m, T = T, gamma = gamma,
@@ -194,6 +197,7 @@ for (q in Q_GRID) {
 
     # --- compact size check under the calibrated c_hat
     msg("Running compact size check: ", tag_cal)
+    Sys.setenv(JBES_LP_CONTEXT = paste(tag_cal, 'null_evaluation', sep = '|'))
     reps_size <- checkpoint_design(paste0(tag_cal, "_size"), par_lapply_safe(
       1:N_SIZE,
       function(i) {
@@ -269,6 +273,7 @@ for (q in Q_GRID) {
             out
           }
 
+          Sys.setenv(JBES_LP_CONTEXT = paste(tag, 'alternative', sep = '|'))
           reps <- checkpoint_design(tag, par_lapply_safe(1:N_MC, one_rep,
             n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt
           ))

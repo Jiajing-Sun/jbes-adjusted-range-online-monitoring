@@ -63,7 +63,10 @@ ae_lp_engine <- function(G) {
         if (attempt > 1L || run != 0L) {
           directory <- Sys.getenv('JBES_LP_DIAGNOSTICS', file.path('results', 'lp_diagnostics'))
           dir.create(directory, recursive = TRUE, showWarnings = FALSE)
-          saveRDS(list(G = G, z = z, attempts = attempts), tempfile('recovered_', directory, '.rds'))
+          saveRDS(list(
+            context = Sys.getenv('JBES_LP_CONTEXT', 'unspecified'),
+            G = G, z = z, attempts = attempts
+          ), tempfile('recovered_', directory, '.rds'))
           highs::hi_solver_set_options(solver, options)
         }
         return(max(0, primal))
@@ -72,7 +75,10 @@ ae_lp_engine <- function(G) {
     directory <- Sys.getenv('JBES_LP_DIAGNOSTICS', file.path('results', 'lp_diagnostics'))
     dir.create(directory, recursive = TRUE, showWarnings = FALSE)
     file <- tempfile('failure_', directory, '.rds')
-    saveRDS(list(G = G, z = z, attempts = attempts), file)
+    saveRDS(list(
+      context = Sys.getenv('JBES_LP_CONTEXT', 'unspecified'),
+      G = G, z = z, attempts = attempts
+    ), file)
     stop('Gauge LP failed numerical certification; input retained in ', file)
   }
 }
