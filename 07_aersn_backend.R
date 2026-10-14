@@ -75,7 +75,42 @@ aersn_gauge_evaluator <- function(h) {
     if (any(c0 <= 0)) {
       normals <- -normals;c0 <- -c0
     }
-    stopifnot(all(c0 > 0));A <- normals / c0
+    if (!all(c0 > 0)) {
+      # A roundoff-sized edge in the difference polygon can have a zero or
+      # reversed offset. Use the equivalent support-width representation of
+      # conv(G)-conv(G) on the SAME full-rank training path. Normals come from
+      # conv(G); no vertex or simulated observation is dropped or regularized.
+      G <- as.matrix(h$G);P <- G[chull(G[, 1], G[, 2]), , drop = FALSE]
+      edges <- P[c(2:nrow(P), 1), , drop = FALSE] - P
+      lengths <- sqrt(rowSums(edges^2));stopifnot(all(lengths > 0))
+      U <- cbind(edges[, 2], -edges[, 1]) / lengths
+      projections <- G %*% t(U)
+      widths <- apply(projections, 2, function(x) diff(range(x)))
+      stopifnot(all(is.finite(widths)), all(widths > 0))
+      A <- U / widths
+      directory <- Sys.getenv('JBES_LP_DIAGNOSTICS', file.path('results', 'lp_diagnostics'))
+      dir.create(directory, recursive = TRUE, showWarnings = FALSE)
+      saveRDS(
+        list(
+          context = Sys.getenv('JBES_LP_CONTEXT', 'unspecified'),
+          G = G, V = V, offsets = c0, support_normals = A
+        ),
+        tempfile('polygon_support_recovery_', directory, '.rds')
+      )
+      checked <- FALSE
+      return(function(Z) {
+        Z <- matrix(Z, ncol = 2);ans <- rep(0, nrow(Z))
+        for (j in seq_len(nrow(A))) ans <- pmax(ans, abs(as.numeric(Z %*% A[j, ])))
+        if (!checked && nrow(Z)) {
+          reference <- as.numeric(aersn::aersn_gauge(h, Z[1, , drop = FALSE]))
+          if (abs(ans[1] - reference) > 1e-7 * (1 + abs(reference)))
+            stop('Polygon support widths and public aersn gauge disagree')
+          checked <<- TRUE
+        }
+        ans
+      })
+    }
+    A <- normals / c0
     return(function(Z) {
       Z <- matrix(Z, ncol = 2);ans <- rep(0, nrow(Z))
       for (j in seq_len(nrow(A))) ans <- pmax(ans, as.numeric(Z %*% A[j, ]))
