@@ -72,3 +72,33 @@ writeLines(
   file.path(out, 'interpretation.txt')
 )
 cat('Reported all six frozen candidate/length combinations and 24 RSMS contrasts.\n')
+
+# Optional additional repeat of the fixed m=500 profile candidate. This was
+# requested after the first confirmation and uses disjoint seed indices.
+# Keep it separate: its fitted thresholds differ from the first batch.
+repeat_directory <- file.path(base, 'dgp_focused_recheck_confirm')
+if (file.exists(file.path(repeat_directory, 'summary.csv'))) {
+  repeat_events <- read.csv(file.path(repeat_directory, 'summary.csv'))
+  repeat_pairs <- read.csv(file.path(repeat_directory, 'paired.csv'))
+  repeat_calibration <- read.csv(file.path(repeat_directory, 'calibration.csv'))
+  repeat_manifest <- readRDS(file.path(repeat_directory, 'manifest.rds'))
+  stopifnot(
+    nrow(repeat_events) == 10L, all(repeat_events$n == 10000),
+    all(repeat_calibration$n_cal == 20000), repeat_manifest$replication_offset == 30000L,
+    all(repeat_events$dgp == 'profile_L16_g0.00'), all(repeat_events$m == 500),
+    all(repeat_events$pre_count + repeat_events$post_count +
+      repeat_events$no_crossing_count == repeat_events$n)
+  )
+  alternative <- subset(repeat_events, sample_phase == 3)
+  stopifnot(
+    all(alternative$break_fraction == .1), all(alternative$h == 4),
+    all(alternative$direction == 'angle_60'), all(alternative$gamma == 0)
+  )
+  repeat_pairs <- subset(repeat_pairs, sample_phase == 3 & first == 'RSMS')
+  stopifnot(nrow(repeat_pairs) == 4L)
+  repeat_pairs$conditional_lower <- repeat_pairs$post_difference - 1.96 * repeat_pairs$paired_se
+  repeat_pairs$conditional_upper <- repeat_pairs$post_difference + 1.96 * repeat_pairs$paired_se
+  write.csv(repeat_events, file.path(out, 'independent_repeat_events.csv'), row.names = FALSE)
+  write.csv(repeat_pairs, file.path(out, 'independent_repeat_paired.csv'), row.names = FALSE)
+  cat('Additional fixed-profile repeat reported separately; calibration uncertainty remains separate.\n')
+}

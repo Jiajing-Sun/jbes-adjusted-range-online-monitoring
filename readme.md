@@ -119,7 +119,7 @@ The optional `JBES_RESUME_VERIFIED=1` switch in the mean and bivariate scripts i
 
 ## Empirical input
 
-Supply a CSV with `Date`, `DateTime` and positive `Close` columns, with records ordered chronologically within each date. The historical USD/GBP application uses 2016 and 2020, transforms prices to `100 / Close`, excludes dates with fewer than 10 observations, uses a prespecified 21-dimensional cubic B-spline basis, and selects FPCA using only training observations (95% explained variance, cap 8).
+Supply a CSV with `Date`, `DateTime` and positive `Close` columns, with records ordered chronologically within each date. The historical USD/GBP application uses 2016 and 2020, transforms prices to `100 / Close`, excludes dates with fewer than 10 observations, uses a fixed 21-dimensional cubic B-spline basis, and selects FPCA using only training observations (95% explained variance, cap 8).
 
 ```sh
 export JBES_GBPUSD_PATH="/absolute/path/to/GBPUSD.csv"
