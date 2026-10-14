@@ -63,6 +63,8 @@ The driver fixes production replication and worker counts to preserve recorded s
 | `34_dgp_comparison_report.R` | Confirmation report for scenarios frozen by screening, retaining automatic-HAC comparisons and null checks |
 | `32_theory_assets.R` | Tables and plots from saved theory-check outputs |
 | `08_mc_audit.R` | First-crossing counts and paired Monte Carlo uncertainty |
+| `53_hac_record_audit.R` | Reconcile fixed and automatic HAC comparisons with saved paths |
+| `54_par_result_audit.R` | Reconcile all PAR paths, event counts, conditional delays and unrounded comparisons |
 | Other numbered R files | Local tables, plots and empirical surface coordinates |
 
 ## Statistical conventions
@@ -135,9 +137,11 @@ Obtain the input under the provider's license. No raw data are included. Fixed-s
 - Hong, Y., Lin, Z., Linton, O., Newey, W. K. and Sun, J. (2026). [aersn](https://rdrr.io/cran/aersn/), version 0.2.3. Use `citation("aersn")` for the package and foundational references. Comparator methods have their own references in the package documentation and manuscript.
 - Zhu, M., Hong, Y., Sun, J. and Linton, O. *Online Monitoring of Structural Change with Adjusted-Range Self-Normalization*, revised manuscript.
 
-The manuscript and full-study outputs are maintained separately. Public source availability does not imply that every new full-study run has finished. No public reuse license has been selected.
+The manuscript and full-study outputs are maintained separately. The October 15, 2026 count-model run completed all 1,728 configurations with 1,000 paths per configuration. The updated manuscript uses the corrected transition indexing and the full increment-hull normalizer. No public reuse license has been selected.
 
 Run `Rscript 51_containment_reference_audit.R` after generating the finite and open-end references to reproduce the per-dimension threshold checks. A passed necessary bound is not evidence of attainable containment.
 
 Run `Rscript 53_hac_record_audit.R` after the mean, bandwidth, kernel and automatic-bandwidth stages to reconcile their saved first-crossing records and threshold quantiles. The fixed-tuning CSMS samples are independent of the baseline RSMS samples, so this report uses independent-sample comparison errors. It preserves each method's own post-change detection event for CADD and conditions on estimated thresholds.
 The same audit reports paired errors for the automatic selectors, which share evaluation paths. Fixed-tuning and automatic-selector comparison errors are therefore kept separate.
+
+Run `Rscript 54_par_result_audit.R` after the PAR stages. It reconstructs event counts, detection probabilities, CADD and paired errors directly from every saved first-crossing path, then checks the aggregate table. Its comparison report excludes the 72 no-change configurations from power rankings, retaining them in the complete output. All 1,656 genuine alternatives and both asymptotic-threshold and independently calibrated results remain available locally; this repository stores the code only.
