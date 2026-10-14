@@ -144,6 +144,15 @@ for (dgp in DGP_GRID) {
     for (T in T_GRID) {
       for (gamma in GAMMA_GRID) {
         mT <- as.integer(round(m * T))
+        # Thresholds are fixed within a design. Resolve them once here,
+        # avoiding repeated CSV reads inside every Monte Carlo replication.
+        c_asym_map <- c(
+          RSMS = get_critical_value_rsms(2, T, gamma, ALPHA),
+          SSMS = get_critical_value_ssms(2, T, gamma, ALPHA),
+          CSMS = get_critical_value_csms(2, T, gamma, ALPHA)
+        )
+        c_hat_map <- setNames(vapply(METHODS, function(method)
+          get_c_hat(dgp, m, T, gamma, method), numeric(1)), METHODS)
 
         for (bf in BREAK_FRAC) {
           k_star <- as.integer(floor(bf * mT))
@@ -175,14 +184,10 @@ for (dgp in DGP_GRID) {
                   Mvec <- compute_path(method, psi, m, T, gamma)
                   max_stat <- max(Mvec)
 
-                  c_asym <- switch(method,
-                    "RSMS" = get_critical_value_rsms(d = 2, T = T, gamma = gamma, alpha_level = ALPHA),
-                    "SSMS" = get_critical_value_ssms(d = 2, T = T, gamma = gamma, alpha_level = ALPHA),
-                    "CSMS" = get_critical_value_csms(d = 2, T = T, gamma = gamma, alpha_level = ALPHA)
-                  )
+                  c_asym <- c_asym_map[[method]]
                   stop_asym <- first_exceed(Mvec, c_asym)
 
-                  c_hat <- get_c_hat(dgp, m, T, gamma, method)
+                  c_hat <- c_hat_map[[method]]
                   stop_adj <- first_exceed(Mvec, c_hat)
 
                   out[[method]] <- c(
@@ -195,6 +200,7 @@ for (dgp in DGP_GRID) {
               }
 
               # Resume only after independently verifying unchanged inputs and streams.
+              reused <- FALSE
               checkpoint <- file.path(RES_DIR, 'event_audit', paste0(tag, '.rds'))
               if (identical(Sys.getenv('JBES_RESUME_VERIFIED'), '1') && file.exists(checkpoint)) {
                 saved <- readRDS(checkpoint)
@@ -203,11 +209,23 @@ for (dgp in DGP_GRID) {
                   saved$horizon == mT, length(saved$replications) == N_MC_ALT
                 )
                 reps <- saved$replications
+                reused <- TRUE
               } else reps <- par_lapply_safe(1:N_MC_ALT, one_rep,
                 n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt
               )
 
-              save_mc_event_audit(reps, METHODS, k_star, mT, tag)
+              # Existing verified records already contain the event audit.
+              # Rebuild missing sidecars, without rewriting complete caches.
+              audit_names <- as.vector(outer(c('stop_asym', 'stop_adj'),
+                c('events', 'paired'), paste,
+                sep = '_'
+              ))
+              audit_files <- file.path(
+                RES_DIR, 'event_audit',
+                paste0(tag, '_', audit_names, '.csv')
+              )
+              if (!reused || !all(file.exists(audit_files)))
+                save_mc_event_audit(reps, METHODS, k_star, mT, tag)
 
               for (method in METHODS) {
                 stop_asym <- sapply(reps, function(rr) rr[[method]]["stop_asym"])
