@@ -104,6 +104,8 @@ kernel_label <- function(kernel) {
 }
 
 res_rows <- list()
+record_dir <- file.path(RES_DIR, "csms_kernel_records")
+dir.create(record_dir, recursive = TRUE, showWarnings = FALSE)
 counter <- 0L
 
 for (T in T_GRID) {
@@ -145,6 +147,17 @@ for (T in T_GRID) {
       seed = SEED_BASE + 50000L + 1000L * counter
     )
     c_hat <- as.numeric(quantile(unlist(cal_reps), probs = 0.95, type = 8))
+    # Keep the independent null and calibration records, not just rounded rates.
+    saveRDS(
+      list(
+        tag = tag, m = M, T = T0, gamma = GAMMA, null_stops = null_mat,
+        calibration_maxima = unlist(cal_reps), estimated_threshold = c_hat,
+        n_null = N_MC_SIZE, n_calibration = N_CAL,
+        seed_null = SEED_BASE + 1000L * counter,
+        seed_calibration = SEED_BASE + 50000L + 1000L * counter
+      ),
+      file.path(record_dir, paste0(tag, "_reference.rds"))
+    )
 
     alt_summary <- function(break_frac, Delta, suffix) {
       k_star <- as.integer(floor(break_frac * mT))
@@ -165,6 +178,17 @@ for (T in T_GRID) {
         seed = SEED_BASE + 90000L + 1000L * counter + ifelse(suffix == "early", 10L, 20L)
       )
       stopv <- unlist(stopv)
+      # Actual first crossings identify pre-change alarms, post-change
+      # detections and no-crossing cases, including rare detections rounded
+      # to zero percent in the table. RSMS uses separate baseline samples.
+      saveRDS(
+        list(
+          tag = tag, m = M, T = T0, gamma = GAMMA, k_star = k_star,
+          Delta = Delta, stops = stopv, critical = c_hat, n_evaluation = N_MC_ALT,
+          seed = SEED_BASE + 90000L + 1000L * counter + ifelse(suffix == "early", 10L, 20L)
+        ),
+        file.path(record_dir, paste0(tag, "_", suffix, ".rds"))
+      )
       metrics <- detection_metrics(stopv, k_star, mT)
       c(
         power_adj = unname(metrics["DP_horizon"]),
