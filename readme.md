@@ -58,6 +58,7 @@ The driver fixes production replication and worker counts to preserve recorded s
 | `30_scalar_theory_checks.R`, `31_bivariate_theory_checks.R` | Independent same-contaminated-null calibration and checks of the new scalar and directional propositions |
 | `33_dgp_exploration.R` | Complete DGP screening grid and independent confirmation with automatic HAC controls |
 | `50_focused_dgp_search.R` | Follow-up model, weight and direction screening with a frozen independent confirmation |
+| `51_containment_reference_audit.R` | All 400 necessary threshold-bound checks for uniform hull containment |
 | `34_dgp_comparison_report.R` | Confirmation report for scenarios frozen by screening, retaining automatic-HAC comparisons and null checks |
 | `32_theory_assets.R` | Tables and plots from saved theory-check outputs |
 | `08_mc_audit.R` | First-crossing counts and paired Monte Carlo uncertainty |
@@ -130,3 +131,5 @@ Obtain the input under the provider's license. No raw data are included. Fixed-s
 - Zhu, M., Hong, Y., Sun, J. and Linton, O. *Online Monitoring of Structural Change with Adjusted-Range Self-Normalization*, revised manuscript.
 
 The manuscript and full-study outputs are maintained separately. Public source availability does not imply that every new full-study run has finished. No public reuse license has been selected.
+
+Run `Rscript 51_containment_reference_audit.R` after generating the finite and open-end references to reproduce the per-dimension threshold checks. A passed necessary bound is not evidence of attainable containment.
