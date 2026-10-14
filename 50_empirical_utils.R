@@ -148,8 +148,7 @@ run_empirical_monitoring <- function(score_mat, dates, m, T, gamma, alpha = 0.05
   methods <- c("RSMS", "SSMS", "CSMS")
   rows <- lapply(methods, function(method) {
     Mvec <- compute_path(method, score_mat, m, T, gamma)
-    cval <- switch(
-      method,
+    cval <- switch(method,
       RSMS = get_critical_value_rsms(d = d_eff, T = T, gamma = gamma, alpha_level = alpha),
       SSMS = get_critical_value_ssms(d = d_eff, T = T, gamma = gamma, alpha_level = alpha),
       CSMS = get_critical_value_csms(d = d_eff, T = T, gamma = gamma, alpha_level = alpha)

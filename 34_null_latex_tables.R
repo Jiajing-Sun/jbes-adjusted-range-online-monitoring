@@ -50,24 +50,28 @@ gamma_grid <- c(0, 0.15)
 fmt <- function(x) sprintf("%.1f", 100 * as.numeric(x))
 
 mean_value <- function(df, dgp0, m0, gamma0, T0, method0, alpha0) {
-  hit <- subset(df,
-                dgp == dgp0 &
-                  m == m0 &
-                  abs(gamma - gamma0) < 1e-12 &
-                  T == T0 &
-                  method == method0 &
-                  abs(alpha - alpha0) < 1e-12)
+  hit <- subset(
+    df,
+    dgp == dgp0 &
+      m == m0 &
+      abs(gamma - gamma0) < 1e-12 &
+      T == T0 &
+      method == method0 &
+      abs(alpha - alpha0) < 1e-12
+  )
   if (nrow(hit) != 1L) stop("Missing or duplicate mean-null entry.")
   fmt(hit$size[1])
 }
 
 par_value <- function(df, m0, gamma0, T0, method0, alpha0) {
-  hit <- subset(df,
-                m == m0 &
-                  abs(gamma - gamma0) < 1e-12 &
-                  T == T0 &
-                  method == method0 &
-                  abs(alpha - alpha0) < 1e-12)
+  hit <- subset(
+    df,
+    m == m0 &
+      abs(gamma - gamma0) < 1e-12 &
+      T == T0 &
+      method == method0 &
+      abs(alpha - alpha0) < 1e-12
+  )
   if (nrow(hit) != 1L) stop("Missing or duplicate PAR-null entry.")
   fmt(hit$size[1])
 }

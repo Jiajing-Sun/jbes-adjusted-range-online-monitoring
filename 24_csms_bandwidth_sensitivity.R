@@ -24,9 +24,9 @@ ETA_GRID <- c(0.50, 0.75, 1.00, 1.25, 1.50, 2.00)
 ALPHA_SIZE <- c(0.05, 0.10)
 
 EARLY_BREAK_FRAC <- 0.10
-LATE_BREAK_FRAC  <- 0.80
+LATE_BREAK_FRAC <- 0.80
 EARLY_DELTA <- 0.50
-LATE_DELTA  <- 1.50
+LATE_DELTA <- 1.50
 
 bootstrap_find_root <- function() {
   env_root <- Sys.getenv("JBES_PROJECT_ROOT", unset = "")
@@ -117,8 +117,10 @@ one_alt_rep <- function(T, eta, break_frac, Delta) {
   k_star <- as.integer(floor(break_frac * mT))
   k_star <- max(1L, min(k_star, mT - 1L))
   X <- sim_var1_dgp(dgp = DGP, n = M + mT, m_train = M, q = 2, burnin = 250)
-  Y <- apply_mean_change(X, M, T, k_star = k_star, Delta = Delta,
-                         shift_vec = rep(1, 2), type = "abrupt")
+  Y <- apply_mean_change(X, M, T,
+    k_star = k_star, Delta = Delta,
+    shift_vec = rep(1, 2), type = "abrupt"
+  )
   psi <- make_mean_psi(Y, M, T)$psi
   L <- make_bw(eta)
   Mvec <- csms_path(psi, M, T, GAMMA, L = L)
@@ -166,8 +168,10 @@ for (T in T_GRID) {
         1:N_MC_ALT,
         function(i) {
           X <- sim_var1_dgp(dgp = DGP, n = M + mT, m_train = M, q = 2, burnin = 250)
-          Y <- apply_mean_change(X, M, T0, k_star = k_star, Delta = Delta,
-                                 shift_vec = rep(1, 2), type = "abrupt")
+          Y <- apply_mean_change(X, M, T0,
+            k_star = k_star, Delta = Delta,
+            shift_vec = rep(1, 2), type = "abrupt"
+          )
           psi <- make_mean_psi(Y, M, T0)$psi
           Mvec <- csms_path(psi, M, T0, GAMMA, L = L)
           first_exceed(Mvec, c_hat)
@@ -177,11 +181,13 @@ for (T in T_GRID) {
       )
       stopv <- unlist(stopv)
       metrics <- detection_metrics(stopv, k_star, mT)
-      c(power_adj = unname(metrics["DP_horizon"]),
+      c(
+        power_adj = unname(metrics["DP_horizon"]),
         PFA_pre_adj = unname(metrics["PFA_pre"]),
         DP_post_adj = unname(metrics["DP_post"]),
         CADD_adj = unname(metrics["CADD"]),
-        ADD_adj = unname(metrics["ADD_excess"]))
+        ADD_adj = unname(metrics["ADD_excess"])
+      )
     }
 
     early <- alt_summary(EARLY_BREAK_FRAC, EARLY_DELTA, "early")

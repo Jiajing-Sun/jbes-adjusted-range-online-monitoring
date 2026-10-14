@@ -13,16 +13,17 @@ sim_par1 <- function(n, alpha, lambda, burnin = 200, x0 = NULL, seed = NULL) {
   X <- integer(Ntot)
   X[1] <- x0
   for (t in 2:Ntot) {
-    thin <- rbinom(1, X[t-1], alpha)
+    thin <- rbinom(1, X[t - 1], alpha)
     innov <- rpois(1, lambda)
     X[t] <- thin + innov
   }
-  X_use <- X[(burnin+1):Ntot]
+  X_use <- X[(burnin + 1):Ntot]
   stopifnot(length(X_use) == n)
   X_use
 }
 
-# Time-varying PAR(1) with a single break at t_star (observation index)
+# Time-varying PAR(1) with m training transitions and m*T monitored transitions.
+# The returned vector starts with X_0, which supplies the first lagged value.
 sim_par1_break <- function(m, T, k_star,
                            alpha1, lambda1, alpha2, lambda2,
                            type = c("abrupt", "smooth"),
@@ -35,8 +36,10 @@ sim_par1_break <- function(m, T, k_star,
   mT <- as.integer(round(m * T))
   n_obs <- m + mT + 1L # +1 so we have m+mT transitions
 
-  # break location in observation time:
-  t_star <- m + k_star
+  # Vector element 1 is X_0, so transition j ends at element j+1.
+  # k_star monitored transitions precede the change; the first changed
+  # transition is m+k_star+1 and ends at vector element m+k_star+2.
+  t_star <- m + k_star + 1L
 
   # initial from stationary approx of pre-change regime
   mu <- lambda1 / (1 - alpha1)
@@ -64,12 +67,12 @@ sim_par1_break <- function(m, T, k_star,
       }
     }
 
-    thin <- rbinom(1, X[t-1], a)
+    thin <- rbinom(1, X[t - 1], a)
     innov <- rpois(1, lam)
     X[t] <- thin + innov
   }
 
-  X_use <- X[(burnin+1):(burnin + n_obs)]
+  X_use <- X[(burnin + 1):(burnin + n_obs)]
   stopifnot(length(X_use) == n_obs)
   X_use
 }
@@ -90,7 +93,7 @@ par1_negloglik_trans <- function(par, X) {
   n <- length(X)
   ll <- 0
   for (t in 2:n) {
-    p <- par1_cond_prob(X[t], X[t-1], alpha, lambda)
+    p <- par1_cond_prob(X[t], X[t - 1], alpha, lambda)
     p <- max(p, 1e-300)
     ll <- ll + log(p)
   }
@@ -103,7 +106,7 @@ par1_fit_mle <- function(X_train) {
   stopifnot(n >= 3)
 
   # crude initial values
-  acf1 <- suppressWarnings(cor(X_train[2:n], X_train[1:(n-1)]))
+  acf1 <- suppressWarnings(cor(X_train[2:n], X_train[1:(n - 1)]))
   if (!is.finite(acf1)) acf1 <- 0.2
   alpha0 <- min(max(acf1, 0.01), 0.95)
 
@@ -111,11 +114,18 @@ par1_fit_mle <- function(X_train) {
   lambda0 <- max(mu_hat * (1 - alpha0), 0.05)
 
   par0 <- c(qlogis(alpha0), log(lambda0))
-  opt <- optim(par0, par1_negloglik_trans, X = X_train,
-               method = "BFGS",
-               control = list(maxit = 300))
+  opt <- optim(par0, par1_negloglik_trans,
+    X = X_train,
+    method = "BFGS",
+    control = list(maxit = 300)
+  )
   alpha_hat <- plogis(opt$par[1])
   lambda_hat <- exp(opt$par[2])
+  # Failed fits stop the experiment; do not discard or replace these paths.
+  if (opt$convergence != 0L || !is.finite(opt$value) ||
+    !is.finite(alpha_hat) || alpha_hat <= 0 || alpha_hat >= 1 ||
+    !is.finite(lambda_hat) || lambda_hat <= 0)
+    stop("PAR conditional MLE failed; convergence code: ", opt$convergence)
   list(alpha = alpha_hat, lambda = lambda_hat, opt = opt)
 }
 
@@ -139,8 +149,8 @@ par1_score_transition <- function(x, y, alpha, lambda) {
 par1_score_matrix <- function(X, alpha, lambda) {
   n <- length(X)
   S <- matrix(0, n - 1L, 2L)
-  for (t in 1:(n-1L)) {
-    S[t, ] <- par1_score_transition(X[t+1], X[t], alpha, lambda)
+  for (t in 1:(n - 1L)) {
+    S[t, ] <- par1_score_transition(X[t + 1], X[t], alpha, lambda)
   }
   colnames(S) <- c("score_alpha", "score_lambda")
   S

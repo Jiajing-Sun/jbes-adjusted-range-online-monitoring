@@ -14,11 +14,11 @@ AUTO_INSTALL <- TRUE
 N_CORES <- 1L
 SEED_BASE <- 77889
 
-N_SIZE <- 1000    # size reps
-N_CAL  <- 1000    # calibration reps for size-adjusted power under contamination
-N_MC   <- 1000    # power reps under contamination
+N_SIZE <- 1000 # size reps
+N_CAL <- 1000 # calibration reps for size-adjusted power under contamination
+N_MC <- 1000 # power reps under contamination
 
-METHODS <- c("RSMS","SSMS","CSMS")
+METHODS <- c("RSMS", "SSMS", "CSMS")
 ALPHA <- 0.05
 
 # Base mean monitoring design
@@ -26,20 +26,20 @@ dgp <- "DGP2"
 q <- 2
 m <- 500
 T <- 2
-mT <- as.integer(round(m*T))
+mT <- as.integer(round(m * T))
 GAMMA_GRID <- c(0, 0.15)
 
-BREAK_FRAC <- c(0.1, 0.8)     # break in monitoring window
-DELTA <- 0.5                  # monitoring break magnitude (target)
+BREAK_FRAC <- c(0.1, 0.8) # break in monitoring window
+DELTA <- 0.5 # monitoring break magnitude (target)
 CHANGE_TYPE <- "abrupt"
 shift_vec <- rep(1, q)
 
 # Contamination regimes
-l_mild <- ceiling(m^0.4)      # o(sqrt(m))
+l_mild <- ceiling(m^0.4) # o(sqrt(m))
 pi_frac <- 0.2
 l_frac <- ceiling(pi_frac * m)
 
-B_GRID <- round(seq(0, 1, by = 0.05), 2)  # contamination magnitude
+B_GRID <- round(seq(0, 1, by = 0.05), 2) # contamination magnitude
 
 
 # --- bootstrap project root and source utilities ----------------------
@@ -115,7 +115,7 @@ RES_DIR <- file.path(ROOT, "results")
 LOG_DIR <- file.path(ROOT, "logs")
 if (!dir.exists(RES_DIR)) dir.create(RES_DIR, recursive = TRUE, showWarnings = FALSE)
 if (!dir.exists(LOG_DIR)) dir.create(LOG_DIR, recursive = TRUE, showWarnings = FALSE)
-ensure_pkgs(c("MASS","Matrix"), auto_install = AUTO_INSTALL)
+ensure_pkgs(c("MASS", "Matrix"), auto_install = AUTO_INSTALL)
 
 source(file.path(ROOT, "01_critical_values.R"))
 source(file.path(ROOT, "02_methods.R"))
@@ -160,7 +160,7 @@ rows <- list()
 cnt <- 0L
 
 for (gamma in GAMMA_GRID) {
-  for (regime in c("mild","fraction")) {
+  for (regime in c("mild", "fraction")) {
     l_contam <- if (regime == "mild") l_mild else l_frac
 
     for (B in B_GRID) {
@@ -179,19 +179,21 @@ for (gamma in GAMMA_GRID) {
         sapply(METHODS, function(method) {
           Mvec <- compute_path(method, psi, m, T, gamma)
           c_asym <- switch(method,
-                           "RSMS" = get_critical_value_rsms(d = q, T = T, gamma = gamma, alpha_level = ALPHA),
-                           "SSMS" = get_critical_value_ssms(d = q, T = T, gamma = gamma, alpha_level = ALPHA),
-                           "CSMS" = get_critical_value_csms(d = q, T = T, gamma = gamma, alpha_level = ALPHA))
+            "RSMS" = get_critical_value_rsms(d = q, T = T, gamma = gamma, alpha_level = ALPHA),
+            "SSMS" = get_critical_value_ssms(d = q, T = T, gamma = gamma, alpha_level = ALPHA),
+            "CSMS" = get_critical_value_csms(d = q, T = T, gamma = gamma, alpha_level = ALPHA)
+          )
           as.integer(first_exceed(Mvec, c_asym) <= mT)
         })
       }
       reps_size <- par_lapply_safe(1:N_SIZE, one_rep_size,
-                                   n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt)
+        n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt
+      )
       mat_size <- do.call(rbind, reps_size)
       colnames(mat_size) <- METHODS
 
       for (method in METHODS) {
-        rows[[length(rows)+1L]] <- data.frame(
+        rows[[length(rows) + 1L]] <- data.frame(
           exp = "size_contaminated_training",
           regime = regime, l_contam = l_contam, B = B,
           gamma = gamma, break_frac = NA, k_star = NA,
@@ -212,12 +214,14 @@ for (gamma in GAMMA_GRID) {
         Y <- apply_training_contamination(X, m, l_contam, B, shift_vec)
         make_mean_psi(Y, m, T)$psi
       }
-      c_hat_df <- calibrate_critical_values(METHODS = METHODS, gen_psi = gen_psi_null,
-                                            m = m, T = T, gamma = gamma,
-                                            alpha = ALPHA, N_CAL = N_CAL,
-                                            n_cores = N_CORES,
-                                            seed = SEED_BASE + 50000L + 1000L * cnt,
-                                            tag = tag)
+      c_hat_df <- calibrate_critical_values(
+        METHODS = METHODS, gen_psi = gen_psi_null,
+        m = m, T = T, gamma = gamma,
+        alpha = ALPHA, N_CAL = N_CAL,
+        n_cores = N_CORES,
+        seed = SEED_BASE + 50000L + 1000L * cnt,
+        tag = tag
+      )
       c_hat_map <- setNames(c_hat_df$c_hat, c_hat_df$method)
 
       # --------------------------------------------------------
@@ -230,8 +234,10 @@ for (gamma in GAMMA_GRID) {
         one_rep_pow <- function(i) {
           X <- sim_var1_dgp(dgp = dgp, n = m + mT, m_train = m, q = q, burnin = 300)
           Y0 <- apply_training_contamination(X, m, l_contam, B, shift_vec)
-          Y <- apply_mean_change(Y0, m, T, k_star = k_star, Delta = DELTA,
-                                 shift_vec = shift_vec, type = CHANGE_TYPE)
+          Y <- apply_mean_change(Y0, m, T,
+            k_star = k_star, Delta = DELTA,
+            shift_vec = shift_vec, type = CHANGE_TYPE
+          )
           psi <- make_mean_psi(Y, m, T)$psi
 
           sapply(METHODS, function(method) {
@@ -240,7 +246,8 @@ for (gamma in GAMMA_GRID) {
           })
         }
         reps_pow <- par_lapply_safe(1:N_MC, one_rep_pow,
-                                    n_cores = N_CORES, seed = SEED_BASE + 80000L + 1000L * cnt + as.integer(100*bf))
+          n_cores = N_CORES, seed = SEED_BASE + 80000L + 1000L * cnt + as.integer(100 * bf)
+        )
         mat_stop <- do.call(rbind, reps_pow)
         colnames(mat_stop) <- METHODS
 
@@ -248,7 +255,7 @@ for (gamma in GAMMA_GRID) {
           stops <- mat_stop[, method]
           metrics <- detection_metrics(stops, k_star, mT)
 
-          rows[[length(rows)+1L]] <- data.frame(
+          rows[[length(rows) + 1L]] <- data.frame(
             exp = "power_with_contaminated_training",
             regime = regime, l_contam = l_contam, B = B,
             gamma = gamma, break_frac = bf, k_star = k_star,

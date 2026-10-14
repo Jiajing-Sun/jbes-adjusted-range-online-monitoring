@@ -74,7 +74,7 @@ source(file.path(ROOT, "02_methods.R"))
 source(file.path(ROOT, "03_affine_extrema.R"))
 jbes_set_root(ROOT)
 
-RES_DIR <- file.path(ROOT, "results", Sys.getenv("JBES_CV_SUBDIR", unset=""))
+RES_DIR <- file.path(ROOT, "results", Sys.getenv("JBES_CV_SUBDIR", unset = ""))
 if (!dir.exists(RES_DIR)) dir.create(RES_DIR, recursive = TRUE, showWarnings = FALSE)
 
 ensure_pkgs("parallel", auto_install = AUTO_INSTALL)
@@ -100,7 +100,8 @@ simulate_finite_one <- function(rep_id) {
   total_steps <- as.integer((T_max + 1) * N_GRID_PER_UNIT)
 
   dW <- matrix(rnorm(total_steps * d_max, sd = sqrt(dt)),
-               nrow = total_steps, ncol = d_max)
+    nrow = total_steps, ncol = d_max
+  )
   W <- rbind(0, apply(dW, 2, cumsum))
 
   idx_t1 <- N_GRID_PER_UNIT + 1L
@@ -124,8 +125,10 @@ simulate_finite_one <- function(rep_id) {
   gauge_weights <- vapply(GAMMA_GRID, function(g) 1 / ((1 + s_full) * (s_full / (1 + s_full))^g), numeric(n_full))
   for (di in seq_along(D_GRID)) {
     d <- D_GRID[di]
-    rsms_stat[di,,] <- ae_gauge_maxima(rbind(0, B_train[,1:d,drop=FALSE]),
-      U_full[,1:d,drop=FALSE], as.integer(T_GRID * N_GRID_PER_UNIT), gauge_weights)^2
+    rsms_stat[di, , ] <- ae_gauge_maxima(
+      rbind(0, B_train[, 1:d, drop = FALSE]),
+      U_full[, 1:d, drop = FALSE], as.integer(T_GRID * N_GRID_PER_UNIT), gauge_weights
+    )^2
   }
 
   for (t_idx in seq_along(T_GRID)) {
@@ -157,17 +160,19 @@ simulate_finite_one <- function(rep_id) {
 }
 
 if (identical(Sys.getenv("JBES_CV_CHECKPOINT"), "1")) {
- source(file.path(ROOT,"04_reference_replicates.R"))
- reps <- reference_replicates(simulate_finite_one, N_REP, N_CORES, SEED_BASE,
-  file.path(RES_DIR,"checkpoints_finite"), list(mode="finite",d=D_GRID,T=T_GRID,gamma=GAMMA_GRID,grid=N_GRID_PER_UNIT))
+  source(file.path(ROOT, "04_reference_replicates.R"))
+  reps <- reference_replicates(
+    simulate_finite_one, N_REP, N_CORES, SEED_BASE,
+    file.path(RES_DIR, "checkpoints_finite"), list(mode = "finite", d = D_GRID, T = T_GRID, gamma = GAMMA_GRID, grid = N_GRID_PER_UNIT)
+  )
 } else {
-reps <- par_lapply_safe(
-  X = seq_len(N_REP),
-  fun = simulate_finite_one,
-  n_cores = N_CORES,
-  seed = SEED_BASE,
-  packages = "parallel"
-)
+  reps <- par_lapply_safe(
+    X = seq_len(N_REP),
+    fun = simulate_finite_one,
+    n_cores = N_CORES,
+    seed = SEED_BASE,
+    packages = "parallel"
+  )
 }
 
 collect_method_array <- function(method) {

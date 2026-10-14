@@ -85,7 +85,7 @@ bootstrap_cvalue <- function(score_mat, m, T, gamma, method, n_boot, alpha) {
   for (b in seq_len(n_boot)) {
     boot_scores <- sample_circular_blocks(train_centered, total_len, block_len)
     # Refit the bootstrap training mean, as in the original estimator.
-    boot_scores <- sweep(boot_scores, 2L, colMeans(boot_scores[seq_len(m),,drop=FALSE]), "-")
+    boot_scores <- sweep(boot_scores, 2L, colMeans(boot_scores[seq_len(m), , drop = FALSE]), "-")
     boot_max[b] <- max(compute_path(method, boot_scores, m, T, gamma))
   }
   as.numeric(stats::quantile(boot_max, probs = 1 - alpha, type = 8, names = FALSE))

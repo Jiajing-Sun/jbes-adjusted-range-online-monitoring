@@ -109,50 +109,64 @@ for (T0 in T_FOCUS) {
       for (chg0 in CHANGE_FOCUS) {
         dt1 <- dt[
           m == M_FOCUS &
-          T == T0 &
-          abs(gamma - gamma0) < 1e-12 &
-          abs(break_frac - bf0) < 1e-12 &
-          change_type == chg0
+            T == T0 &
+            abs(gamma - gamma0) < 1e-12 &
+            abs(break_frac - bf0) < 1e-12 &
+            change_type == chg0
         ]
 
         if (nrow(dt1) == 0L) next
 
         tag <- slice_tag(T0, gamma0, bf0, chg0)
-        title_stub <- sprintf("PAR(1), m=%d, T=%s, gamma=%.2f, break=%.1f, %s",
-                              M_FOCUS, T0, gamma0, bf0, chg0)
+        title_stub <- sprintf(
+          "PAR(1), m=%d, T=%s, gamma=%.2f, break=%.1f, %s",
+          M_FOCUS, T0, gamma0, bf0, chg0
+        )
 
         p <- ggplot(dt1, aes(x = lambda2, y = alpha2, fill = DP_post_adj)) +
           geom_tile() +
-          facet_wrap(~ method, nrow = 1) +
-          labs(title = paste0("Size-adjusted post-break detection probability (", title_stub, ")"),
-               x = expression(lambda[2]), y = expression(alpha[2]), fill = expression(DP[post])) +
+          facet_wrap(~method, nrow = 1) +
+          labs(
+            title = paste0("Size-adjusted post-break detection probability (", title_stub, ")"),
+            x = expression(lambda[2]), y = expression(alpha[2]), fill = expression(DP[post])
+          ) +
           scale_fill_gradient(low = "white", high = "black") +
           par_theme
 
         ggsave(file.path(FIG_DIR, paste0("par_power_adj_heatmap_", tag, ".pdf")),
-               p, width = 12.5, height = 4.2)
+          p,
+          width = 12.5, height = 4.2
+        )
 
         p2 <- ggplot(dt1, aes(x = lambda2, y = alpha2, z = CADD_adj)) +
           geom_contour(aes(color = after_stat(level)), linewidth = 0.65, bins = 8, show.legend = TRUE) +
-          facet_wrap(~ method, nrow = 1) +
-          labs(title = paste0("CADD contours (", title_stub, ")"),
-               x = expression(lambda[2]), y = expression(alpha[2]), color = "CADD") +
+          facet_wrap(~method, nrow = 1) +
+          labs(
+            title = paste0("CADD contours (", title_stub, ")"),
+            x = expression(lambda[2]), y = expression(alpha[2]), color = "CADD"
+          ) +
           scale_color_gradient(low = "grey80", high = "black") +
           par_theme
 
         ggsave(file.path(FIG_DIR, paste0("par_ADD_adj_contour_", tag, ".pdf")),
-               p2, width = 12.5, height = 4.2)
+          p2,
+          width = 12.5, height = 4.2
+        )
 
         p3 <- ggplot(dt1, aes(x = lambda2, y = alpha2, z = ARL_adj)) +
           geom_contour(aes(color = after_stat(level)), linewidth = 0.65, bins = 8, show.legend = TRUE) +
-          facet_wrap(~ method, nrow = 1) +
-          labs(title = paste0("ARL contours (", title_stub, ")"),
-               x = expression(lambda[2]), y = expression(alpha[2]), color = "ARL") +
+          facet_wrap(~method, nrow = 1) +
+          labs(
+            title = paste0("ARL contours (", title_stub, ")"),
+            x = expression(lambda[2]), y = expression(alpha[2]), color = "ARL"
+          ) +
           scale_color_gradient(low = "grey80", high = "black") +
           par_theme
 
         ggsave(file.path(FIG_DIR, paste0("par_ARL_adj_contour_", tag, ".pdf")),
-               p3, width = 12.5, height = 4.2)
+          p3,
+          width = 12.5, height = 4.2
+        )
       }
     }
   }

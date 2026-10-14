@@ -12,7 +12,7 @@ SEED_BASE <- 13579
 
 N_MC_ALT <- 1000
 
-METHODS <- c("RSMS","SSMS","CSMS")
+METHODS <- c("RSMS", "SSMS", "CSMS")
 ALPHA <- 0.05
 
 # Design
@@ -27,8 +27,8 @@ ALPHA1 <- 0.2
 LAMBDA1 <- 2.0
 
 # Post-change grid
-ALPHA2_GRID  <- seq(0.2, 0.35, by = 0.05)
-LAMBDA2_GRID <- seq(2.0, 2.5,  by = 0.1)
+ALPHA2_GRID <- seq(0.2, 0.35, by = 0.05)
+LAMBDA2_GRID <- seq(2.0, 2.5, by = 0.1)
 
 
 # --- bootstrap project root and source utilities ----------------------
@@ -88,7 +88,7 @@ bootstrap_find_root <- function() {
 ROOT <- bootstrap_find_root()
 source(file.path(ROOT, "00_utils.R"))
 jbes_set_root(ROOT)
-source(file.path(ROOT,"08_mc_audit.R"))
+source(file.path(ROOT, "08_mc_audit.R"))
 msg("Project root: ", ROOT)
 
 N_CORES <- env_int("JBES_N_CORES", N_CORES)
@@ -120,12 +120,14 @@ calib_df <- subset(calib_df, abs(alpha - ALPHA) < 1e-12)
 
 get_c_hat <- function(m0, T0, gamma0, method0) {
   sub <- calib_df[calib_df$m == m0 &
-                    calib_df$T == T0 &
-                    abs(calib_df$gamma - gamma0) < 1e-12 &
-                    calib_df$method == method0, ]
+    calib_df$T == T0 &
+    abs(calib_df$gamma - gamma0) < 1e-12 &
+    calib_df$method == method0, ]
   if (nrow(sub) != 1) {
-    stop("Missing/duplicate calib for: ",
-         paste(m0, T0, gamma0, method0, sep = " / "))
+    stop(
+      "Missing/duplicate calib for: ",
+      paste(m0, T0, gamma0, method0, sep = " / ")
+    )
   }
   sub$c_hat[1]
 }
@@ -133,12 +135,12 @@ get_c_hat <- function(m0, T0, gamma0, method0) {
 
 msg("Starting ALT simulations (PAR(1))")
 
-CHECK_DIR<-file.path(RES_DIR,"par_alternative_checkpoints")
-dir.create(CHECK_DIR,recursive=TRUE,showWarnings=FALSE)
-checkpoint_par<-function(tag,expr){
- path<-file.path(CHECK_DIR,paste0(tag,".rds"))
- if(file.exists(path))return(readRDS(path))
- value<-force(expr);saveRDS(value,path);value
+CHECK_DIR <- file.path(RES_DIR, "par_alternative_checkpoints")
+dir.create(CHECK_DIR, recursive = TRUE, showWarnings = FALSE)
+checkpoint_par <- function(tag, expr) {
+  path <- file.path(CHECK_DIR, paste0(tag, ".rds"))
+  if (file.exists(path)) return(readRDS(path))
+  value <- force(expr);saveRDS(value, path);value
 }
 perf_rows <- list()
 cnt <- 0L
@@ -154,25 +156,30 @@ for (m in M_GRID) {
         for (chg in CHANGE_TYPES) {
           for (a2 in ALPHA2_GRID) {
             for (l2 in LAMBDA2_GRID) {
-
               cnt <- cnt + 1L
-              tag <- sprintf("par_alt_m%d_T%d_g%.2f_bf%.1f_%s_a2%.2f_l2%.1f",
-                             m, T, gamma, bf, chg, a2, l2)
+              tag <- sprintf(
+                "par_alt_m%d_T%d_g%.2f_bf%.1f_%s_a2%.2f_l2%.1f",
+                m, T, gamma, bf, chg, a2, l2
+              )
               msg("Design: ", tag)
 
-              c_asym_map <- c(RSMS=get_critical_value_rsms(2,T,gamma,ALPHA),
-                SSMS=get_critical_value_ssms(2,T,gamma,ALPHA),CSMS=get_critical_value_csms(2,T,gamma,ALPHA))
-              c_hat_map <- setNames(vapply(METHODS,function(method)get_c_hat(m,T,gamma,method),numeric(1)),METHODS)
+              c_asym_map <- c(
+                RSMS = get_critical_value_rsms(2, T, gamma, ALPHA),
+                SSMS = get_critical_value_ssms(2, T, gamma, ALPHA), CSMS = get_critical_value_csms(2, T, gamma, ALPHA)
+              )
+              c_hat_map <- setNames(vapply(METHODS, function(method) get_c_hat(m, T, gamma, method), numeric(1)), METHODS)
 
               one_rep <- function(i) {
-                X <- sim_par1_break(m = m, T = T, k_star = k_star,
-                                    alpha1 = ALPHA1, lambda1 = LAMBDA1,
-                                    alpha2 = a2, lambda2 = l2,
-                                    type = chg, delta_smooth = 0.05,
-                                    burnin = 500)
+                X <- sim_par1_break(
+                  m = m, T = T, k_star = k_star,
+                  alpha1 = ALPHA1, lambda1 = LAMBDA1,
+                  alpha2 = a2, lambda2 = l2,
+                  type = chg, delta_smooth = 0.05,
+                  burnin = 500
+                )
 
                 # Fit on training obs (length m+1)
-                fit <- par1_fit_mle(X_train = X[1:(m+1L)])
+                fit <- par1_fit_mle(X_train = X[1:(m + 1L)])
                 psi <- par1_score_matrix(X, alpha = fit$alpha, lambda = fit$lambda) # (m+mT) x 2
 
                 out <- list()
@@ -189,14 +196,15 @@ for (m in M_GRID) {
                 out
               }
 
-              reps <- checkpoint_par(tag,par_lapply_safe(1:N_MC_ALT, one_rep,
-                                      n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt))
+              reps <- checkpoint_par(tag, par_lapply_safe(1:N_MC_ALT, one_rep,
+                n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt
+              ))
 
-              save_mc_event_audit(reps,METHODS,k_star,mT,tag)
+              save_mc_event_audit(reps, METHODS, k_star, mT, tag)
 
               for (method in METHODS) {
                 stop_asym <- sapply(reps, function(rr) rr[[method]]["stop_asym"])
-                stop_adj  <- sapply(reps, function(rr) rr[[method]]["stop_adj"])
+                stop_adj <- sapply(reps, function(rr) rr[[method]]["stop_adj"])
 
                 metrics_asym <- detection_metrics(stop_asym, k_star, mT)
                 metrics_adj <- detection_metrics(stop_adj, k_star, mT)
@@ -207,7 +215,7 @@ for (m in M_GRID) {
                   alpha2 = a2, lambda2 = l2,
                   method = method,
                   power_asym = metrics_asym["DP_horizon"],
-                  power_adj  = metrics_adj["DP_horizon"],
+                  power_adj = metrics_adj["DP_horizon"],
                   PFA_pre_asym = metrics_asym["PFA_pre"],
                   PFA_pre_adj = metrics_adj["PFA_pre"],
                   DP_post_asym = metrics_asym["DP_post"],
@@ -222,7 +230,6 @@ for (m in M_GRID) {
                   stringsAsFactors = FALSE
                 )
               }
-
             }
           }
         }

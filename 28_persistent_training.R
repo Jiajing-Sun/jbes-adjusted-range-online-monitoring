@@ -1,8 +1,9 @@
 # Persistent training break: fixed design, independent calibration/evaluation,
 # common random numbers across B, gamma, directions and competing methods.
-# Run from replication/. The original data generator and all old results are retained.
+# Run from the project root. The final training regime persists in monitoring.
+# Cached paths must match the recorded generator and design exactly.
 source('00_utils.R'); source('01_critical_values.R')
-source('02_methods.R'); source('10_dgps_mean.R'); source('06_training_geometry.R')
+source('08_mc_audit.R'); source('02_methods.R'); source('10_dgps_mean.R'); source('06_training_geometry.R')
 jbes_set_root(normalizePath(getwd()))
 N <- env_int('JBES_PERSIST_N',1000L)
 CORES <- env_int('JBES_N_CORES',8L)
@@ -16,6 +17,22 @@ SCENES <- data.frame(name=c('none','parallel_early','parallel_late',
 SEED <- 91427000L
 OUT <- Sys.getenv('JBES_PERSIST_OUT','results/persistent_training')
 dir.create(OUT,recursive=TRUE,showWarnings=FALSE)
+manifest <- list(schema=2L,m=MS,B=BS,gamma=GS,scenes=SCENES,N=N,seed=SEED,
+  horizon=TT,training_fraction=PI,
+  package=as.character(packageVersion('aersn')),
+  source=unname(tools::md5sum(file.path(jbes_root(),c('10_dgps_mean.R','02_methods.R',
+    '07_aersn_backend.R','06_training_geometry.R')))),
+  reference=unname(tools::md5sum('results/affine_finite_critical_values.csv')))
+manifest_path <- file.path(OUT,'manifest.rds')
+if(file.exists(manifest_path)) {
+  if(!identical(readRDS(manifest_path),manifest))
+    stop('Persistent-training checkpoints differ from this run; set JBES_PERSIST_OUT to a fresh directory.')
+} else {
+  if(length(list.files(OUT,pattern='\\.rds$')))
+    stop('Unverified persistent-training checkpoints found; archive them before running.')
+  saveRDS(manifest,manifest_path)
+}
+
 clean <- array(NA_real_,c(2,3))
 for(g in 1:2)for(j in 1:3) clean[g,j] <- switch(METHODS[j],
  RSMS=get_critical_value_rsms(2,TT,GS[g],.05),
@@ -80,6 +97,7 @@ for(mi in seq_along(MS)) {
      for(si in seq_along(scenarios)) {
       sc <- SCENES[scenarios[si],]; ks <- floor(sc$bf*nmon)
       st <- sapply(1:3,function(j)vapply(ans,function(z)z$stops[bi,gi,si,j,ca],0))
+      colnames(st) <- METHODS
       for(j in 1:3) {
        alarm <- st[,j]<=nmon; post <- st[,j]>ks & alarm; delay <- st[post,j]-ks
        summary_rows[[length(summary_rows)+1L]] <- data.frame(m=m,B=BS[bi],pi=PI,T=TT,gamma=GS[gi],
@@ -99,6 +117,12 @@ for(mi in seq_along(MS)) {
          containment_rate=mean(event),R_pre=mean(st[,1]<=ks),
          bound_lower=-mean(!event)-mean(st[,1]<=ks),
          containment_violations=sum(event & st[,1]>st[,2]),N=N)
+       # Compare conditional means using their separate detection events.
+       # The paired ratio-estimator error allows different detected subsets.
+       delay_audit <- mc_event_audit(st,ks,nmon)$paired
+       delay_pair <- delay_audit[delay_audit$first=='RSMS' & delay_audit$second=='SSMS',]
+       paired$cadd_gap_R_minus_S <- delay_pair$cadd_difference
+       paired$cadd_gap_se <- delay_pair$cadd_difference_se
        common <- event & st[,1]>ks
        paired$common_survival_count <- sum(common)
        paired$common_survival_probability <- mean(common)

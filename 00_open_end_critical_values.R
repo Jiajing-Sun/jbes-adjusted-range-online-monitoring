@@ -88,7 +88,7 @@ N_GRID_MON <- env_int("JBES_CV_N_GRID_MON_OPEN", N_GRID_MON)
 N_CORES <- env_int("JBES_N_CORES", N_CORES)
 D_GRID <- env_num_vec("JBES_CV_D_GRID", D_GRID)
 
-RES_DIR <- file.path(ROOT, "results", Sys.getenv("JBES_CV_SUBDIR", unset=""))
+RES_DIR <- file.path(ROOT, "results", Sys.getenv("JBES_CV_SUBDIR", unset = ""))
 if (!dir.exists(RES_DIR)) dir.create(RES_DIR, recursive = TRUE, showWarnings = FALSE)
 
 ensure_pkgs("parallel", auto_install = AUTO_INSTALL)
@@ -108,7 +108,8 @@ simulate_open_end_one <- function(rep_id) {
   u_train <- seq_len(N_GRID_TRAIN) / N_GRID_TRAIN
   dt_train <- 1 / N_GRID_TRAIN
   dW_train <- matrix(rnorm(N_GRID_TRAIN * d_max, sd = sqrt(dt_train)),
-                     nrow = N_GRID_TRAIN, ncol = d_max)
+    nrow = N_GRID_TRAIN, ncol = d_max
+  )
   W_train <- apply(dW_train, 2, cumsum)
   B_train <- W_train - u_train %o% W_train[N_GRID_TRAIN, ]
 
@@ -117,7 +118,8 @@ simulate_open_end_one <- function(rep_id) {
   u_mon <- seq_len(N_GRID_MON) / N_GRID_MON
   dt_mon <- 1 / N_GRID_MON
   dW_mon <- matrix(rnorm(N_GRID_MON * d_max, sd = sqrt(dt_mon)),
-                   nrow = N_GRID_MON, ncol = d_max)
+    nrow = N_GRID_MON, ncol = d_max
+  )
   W_mon <- apply(dW_mon, 2, cumsum)
 
   mon_sq_cum <- t(apply(W_mon^2, 1, cumsum))
@@ -131,8 +133,10 @@ simulate_open_end_one <- function(rep_id) {
   gauge_weights <- vapply(GAMMA_GRID, function(g) u_mon^(-g), numeric(N_GRID_MON))
   for (di in seq_along(D_GRID)) {
     d <- D_GRID[di]
-    rsms_stat[di,] <- ae_gauge_maxima(rbind(0, B_train[,1:d,drop=FALSE]),
-      W_mon[,1:d,drop=FALSE], N_GRID_MON, gauge_weights)^2
+    rsms_stat[di, ] <- ae_gauge_maxima(
+      rbind(0, B_train[, 1:d, drop = FALSE]),
+      W_mon[, 1:d, drop = FALSE], N_GRID_MON, gauge_weights
+    )^2
   }
 
   ssms_quad_list <- vector("list", length(D_GRID))
@@ -153,17 +157,19 @@ simulate_open_end_one <- function(rep_id) {
 }
 
 if (identical(Sys.getenv("JBES_CV_CHECKPOINT"), "1")) {
- source(file.path(ROOT,"04_reference_replicates.R"))
- reps <- reference_replicates(simulate_open_end_one, N_REP, N_CORES, SEED_BASE,
-  file.path(RES_DIR,"checkpoints_open"), list(mode="open",d=D_GRID,gamma=GAMMA_GRID,grid_train=N_GRID_TRAIN,grid_mon=N_GRID_MON))
+  source(file.path(ROOT, "04_reference_replicates.R"))
+  reps <- reference_replicates(
+    simulate_open_end_one, N_REP, N_CORES, SEED_BASE,
+    file.path(RES_DIR, "checkpoints_open"), list(mode = "open", d = D_GRID, gamma = GAMMA_GRID, grid_train = N_GRID_TRAIN, grid_mon = N_GRID_MON)
+  )
 } else {
-reps <- par_lapply_safe(
-  X = seq_len(N_REP),
-  fun = simulate_open_end_one,
-  n_cores = N_CORES,
-  seed = SEED_BASE,
-  packages = "parallel"
-)
+  reps <- par_lapply_safe(
+    X = seq_len(N_REP),
+    fun = simulate_open_end_one,
+    n_cores = N_CORES,
+    seed = SEED_BASE,
+    packages = "parallel"
+  )
 }
 
 collect_method_matrix <- function(method) {

@@ -11,6 +11,7 @@ Use R 4.1 or later. Run from the repository root:
 ```sh
 Rscript install_dependencies.R
 Rscript verify_backend.R
+Rscript verify_par_indexing.R
 Rscript smoke_pipeline.R
 ```
 
@@ -53,8 +54,11 @@ The driver fixes production replication and worker counts to preserve recorded s
 | `21_moderate_dim_sparse.R`, `22_dependence_sensitivity.R`, `23_training_contamination.R`, `28_persistent_training.R` | Dimension, dependence and contamination designs |
 | `24_csms_bandwidth_sensitivity.R`, `25_csms_kernel_sensitivity.R`, `29_csms_automatic_bandwidth.R` | Prespecified CSMS sensitivity comparisons |
 | `27_matched_grid_size_comparison.R` | Reference-grid size assessment |
-| `50_empirical_utils.R`, `31_empirical_plots.R`, `32_empirical_monitoring_table.R`, `34_empirical_bootstrap_check.R` | USD/GBP preprocessing, monitoring and bootstrap |
+| `50_empirical_utils.R`, `31_empirical_plots.R`, `32_empirical_monitoring_table.R`, `34_empirical_bootstrap_check.R`, `35_empirical_calibration_details.R` | USD/GBP preprocessing, monitoring and bootstrap |
 | `30_scalar_theory_checks.R`, `31_bivariate_theory_checks.R` | Independent same-contaminated-null calibration and checks of the new scalar and directional propositions |
+| `33_dgp_exploration.R` | Complete DGP screening grid and independent confirmation with automatic HAC controls |
+| `34_dgp_comparison_report.R` | Confirmation report for scenarios frozen by screening, retaining automatic-HAC comparisons and null checks |
+| `32_theory_assets.R` | Tables and plots from saved theory-check outputs |
 | `08_mc_audit.R` | First-crossing counts and paired Monte Carlo uncertainty |
 | Other numbered R files | Local tables, plots and empirical surface coordinates |
 
@@ -65,10 +69,37 @@ The driver fixes production replication and worker counts to preserve recorded s
 - Scalar gauges are analytical. Batched two-dimensional gauges use vertices from public aersn functions. Above dimension two, a reusable HiGHS dual LP evaluates the aersn hull. Its first objective for each hull is compared with `aersn_gauge()`, and each accelerated solve checks primal/dual feasibility and objective gap. Set `JBES_AERSN_GAUGE=reference` when invoking a component script to use the public package LP throughout.
 - Screening certifies intervals on the original grid; it does not thin the grid. This source-only repository uses portable R loops; no private compiled accelerator is required.
 - Default Bartlett lag is `L = ceiling(1.06 * m^(1/5))`, with package bandwidth `h = L + 1`. SSMS and CSMS retain the documented `1e-8` ridge. QS uses all lags: regenerate its sensitivity results rather than reusing older truncated output.
+- PAR training length counts transitions. The returned observations start with X_0, and a change begins at monitored transition k_star+1. Earlier alternatives began one transition too early; regenerate their power and delay results. A failed conditional MLE stops the experiment rather than dropping the path.
+- Correlated innovations use `t(chol(Sigma))` for column-vector draws, giving the declared covariance `Sigma`. Earlier code used the upper factor directly. Regenerate DGP2, DGP4 and sensitivity experiments that use correlated innovations; earlier output from that implementation is not interchangeable with these results.
 - Independent calibration, null evaluation and alternative evaluation serve distinct purposes. Size-adjusted power is a model-specific benchmark, not an operational claim that the true data-generating process is known. Retain CSMS advantages and ranking reversals; do not choose tuning rules to lower competitor power.
 - Numerical failures abort a run; paths are not silently discarded or replaced. An aborted run is not a completed Monte Carlo result.
 
 The theory-check scripts use separate calibration, null-evaluation and alternative streams. Defaults are 10,000 calibration and 5,000 evaluation replications. Both signs of local changes and the bivariate transverse directions are retained. The scalar fixed-change delay experiment is separate from its local-power experiment. Paired evaluation errors condition on estimated thresholds; calibration-quantile brackets are reported separately. These scripts implement the specified models and do not establish a universal ranking.
+
+## DGP screening and confirmation
+
+`dgp_screen` evaluates a fixed grid of 26 designs covering positive/negative serial correlation, seasonal dependence, heavy tails, GARCH, cross-lag VAR dynamics and persistent training changes. Stationary noise has long-run covariance I_2, so local shifts use a common long-run signal scale. `dgp_screen_q1` runs their first-coordinate marginals, each with long-run variance one. The scalar batch has separate random streams and output files. Calibration and both evaluation phases are independent.
+
+`dgp_confirmation` uses new streams, two training lengths and automatic Andrews-QS and Newey-West-Bartlett controls for the three highest-ranked screening designs. All screening settings, null checks and reversals remain in the generated output. Screening scores are exploratory, not multiplicity-adjusted significance tests; confirmation results must be assessed separately. Model-specific calibration is an oracle benchmark and does not assume the true DGP is known in an application.
+
+```sh
+Rscript reproduce_reported.R --stage dgp_screen
+Rscript reproduce_reported.R --stage dgp_confirmation
+Rscript reproduce_reported.R --stage dgp_screen_q1
+Rscript reproduce_reported.R --stage dgp_confirmation_q1
+```
+
+A follow-up batch, `dgp_screen_profile`, evaluates ten asymmetric perturbations of the full-rank training-mean profile in the paper. This batch was defined after the stationary screen. It uses iid noise, five unit-length change directions, separate seeds and a separate confirmation stage; it does not vary an information clock. All profiles and transverse signs remain in the output.
+
+```sh
+Rscript reproduce_reported.R --stage dgp_screen_profile
+Rscript reproduce_reported.R --stage dgp_confirmation_profile
+Rscript reproduce_reported.R --stage dgp_report
+```
+
+Moderate-dimensional and persistent-training checkpoints include design and implementation manifests. A mismatch stops the run instead of reusing stale paths. Mean innovations use compiled scalar recursions in an orthogonal eigenbasis; direct-recursion checks confirm the same random draws and agreement to numerical precision.
+
+The optional `JBES_RESUME_VERIFIED=1` switch in the mean and bivariate scripts is for locally saved checkpoints only after the design, seeds, implementation and thresholds have been verified unchanged. It is off by default. Do not reuse arbitrary earlier output.
 
 ## Empirical input
 

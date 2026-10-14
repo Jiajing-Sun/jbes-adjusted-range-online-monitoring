@@ -36,7 +36,7 @@ script_dir <- function() {
   return(getwd())
 }
 
-# Project root: R source files live directly at the root
+# Project root: assumes scripts/ and R/ live directly under the root
 project_root <- function() {
   d <- script_dir()
   base <- basename(d)

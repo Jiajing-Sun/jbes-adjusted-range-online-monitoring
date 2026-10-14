@@ -134,11 +134,11 @@ plot_metric <- function(metric, ylab, file_stub) {
   base_plot <- function(subdt, row_title, ylim = NULL) {
     p_row <- ggplot(
       subdt,
-	      aes(x = Delta, y = .data[[metric]], colour = method, linetype = method, shape = shift, group = interaction(method, shift))
+      aes(x = Delta, y = .data[[metric]], colour = method, linetype = method, shape = shift, group = interaction(method, shift))
     ) +
       geom_line(linewidth = 0.75) +
       geom_point(size = 2.1) +
-      facet_wrap(~ q_lab, nrow = 1, scales = "free_y") +
+      facet_wrap(~q_lab, nrow = 1, scales = "free_y") +
       scale_y_continuous(breaks = scales::breaks_pretty(n = 3), expand = expansion(mult = c(0.08, 0.10))) +
       scale_x_continuous(breaks = sort(unique(dt_pow$Delta))) +
       scale_colour_manual(values = method_greys) +

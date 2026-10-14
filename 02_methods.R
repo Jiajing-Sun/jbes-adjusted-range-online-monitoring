@@ -10,61 +10,71 @@
 # Reusable gauge LP with numerical primal/dual certification. A failed warm
 # start is re-solved on the SAME path and objective, never discarded/redrawn.
 ae_lp_engine <- function(G) {
- G<-as.matrix(G);n<-nrow(G);q<-ncol(G);A<-cbind(G,-1)
- model<-highs::highs_model(L=rep(0,q+1L),lower=rep(-Inf,q+1L),
-  upper=rep(Inf,q+1L),A=A,lhs=rep(0,n),rhs=rep(1,n),maximum=TRUE)
- options<-list(threads=1L,presolve='off',solver='simplex',
-  simplex_strategy=4L,output_flag=FALSE)
- solver<-highs::hi_new_solver(model)
- highs::hi_solver_set_options(solver,options)
- # With output_flag=FALSE, bypass only the package's per-call capture.output
- # sink on the verified package version; the same native solver is called.
- run_solver<-if(as.character(utils::packageVersion('highs'))=='1.14.0.2')
-  getFromNamespace('solver_run','highs') else highs::hi_solver_run
- function(z) {
-  if(max(abs(z))==0)return(0)
-  attempts<-list()
-  for(attempt in 1:3) {
-   if(attempt==2L) {
-    highs::hi_solver_clear_solver(solver)
-    highs::hi_solver_set_options(solver,list(presolve='on',simplex_strategy=1L))
-   }
-   if(attempt==3L) {
-    solver<<-highs::hi_new_solver(model)
-    highs::hi_solver_set_options(solver,c(options[c('threads','solver','output_flag')],
-     list(presolve='on',simplex_strategy=1L,
-      primal_feasibility_tolerance=1e-9,dual_feasibility_tolerance=1e-9)))
-   }
-   highs::hi_solver_set_objective(solver,seq_len(q)-1L,z)
-   run<-run_solver(solver);status<-highs::hi_solver_status(solver)
-   sol<-highs::hi_solver_get_solution(solver)
-   primal<-sum(sol$col_value[seq_len(q)]*z)
-   dual<-sum(pmax(sol$row_dual,0))
-   row_error<-max(c(0,-sol$row_value,sol$row_value-1))
-   dual_error<-max(abs(sol$col_dual))
-   gap<-abs(primal-dual)
-   certificate<-isTRUE(sol$value_valid)&&isTRUE(sol$dual_valid)&&
-    all(is.finite(c(primal,dual,row_error,dual_error)))&&
-    row_error<=1e-7&&dual_error<=1e-7*(1+max(abs(z)))&&
-    gap<=1e-7*(1+abs(primal)+abs(dual))
-   attempts[[attempt]]<-list(run=run,status=status,primal=primal,dual=dual,
-    row_error=row_error,dual_error=dual_error,gap=gap,certificate=certificate)
-   if(status==7L && certificate) {
-    if(attempt>1L || run!=0L) {
-     directory<-Sys.getenv('JBES_LP_DIAGNOSTICS',file.path('results','lp_diagnostics'))
-     dir.create(directory,recursive=TRUE,showWarnings=FALSE)
-     saveRDS(list(G=G,z=z,attempts=attempts),tempfile('recovered_',directory,'.rds'))
-     highs::hi_solver_set_options(solver,options)
+  G <- as.matrix(G);n <- nrow(G);q <- ncol(G);A <- cbind(G, -1)
+  model <- highs::highs_model(
+    L = rep(0, q + 1L), lower = rep(-Inf, q + 1L),
+    upper = rep(Inf, q + 1L), A = A, lhs = rep(0, n), rhs = rep(1, n), maximum = TRUE
+  )
+  options <- list(
+    threads = 1L, presolve = 'off', solver = 'simplex',
+    simplex_strategy = 4L, output_flag = FALSE
+  )
+  solver <- highs::hi_new_solver(model)
+  highs::hi_solver_set_options(solver, options)
+  # With output_flag=FALSE, bypass only the package's per-call capture.output
+  # sink on the verified package version; the same native solver is called.
+  run_solver <- if (as.character(utils::packageVersion('highs')) == '1.14.0.2')
+    getFromNamespace('solver_run', 'highs') else highs::hi_solver_run
+  function(z) {
+    if (max(abs(z)) == 0) return(0)
+    attempts <- list()
+    for (attempt in 1:3) {
+      if (attempt == 2L) {
+        highs::hi_solver_clear_solver(solver)
+        highs::hi_solver_set_options(solver, list(presolve = 'on', simplex_strategy = 1L))
+      }
+      if (attempt == 3L) {
+        solver <<- highs::hi_new_solver(model)
+        highs::hi_solver_set_options(solver, c(
+          options[c('threads', 'solver', 'output_flag')],
+          list(
+            presolve = 'on', simplex_strategy = 1L,
+            primal_feasibility_tolerance = 1e-9, dual_feasibility_tolerance = 1e-9
+          )
+        ))
+      }
+      highs::hi_solver_set_objective(solver, seq_len(q) - 1L, z)
+      run <- run_solver(solver);status <- highs::hi_solver_status(solver)
+      sol <- highs::hi_solver_get_solution(solver)
+      primal <- sum(sol$col_value[seq_len(q)] * z)
+      dual <- sum(pmax(sol$row_dual, 0))
+      row_error <- max(c(0, -sol$row_value, sol$row_value - 1))
+      dual_error <- max(abs(sol$col_dual))
+      gap <- abs(primal - dual)
+      certificate <- isTRUE(sol$value_valid) && isTRUE(sol$dual_valid) &&
+        all(is.finite(c(primal, dual, row_error, dual_error))) &&
+        row_error <= 1e-7 && dual_error <= 1e-7 * (1 + max(abs(z))) &&
+        gap <= 1e-7 * (1 + abs(primal) + abs(dual))
+      attempts[[attempt]] <- list(
+        run = run, status = status, primal = primal, dual = dual,
+        row_error = row_error, dual_error = dual_error, gap = gap, certificate = certificate
+      )
+      if (status == 7L && certificate) {
+        if (attempt > 1L || run != 0L) {
+          directory <- Sys.getenv('JBES_LP_DIAGNOSTICS', file.path('results', 'lp_diagnostics'))
+          dir.create(directory, recursive = TRUE, showWarnings = FALSE)
+          saveRDS(list(G = G, z = z, attempts = attempts), tempfile('recovered_', directory, '.rds'))
+          highs::hi_solver_set_options(solver, options)
+        }
+        return(max(0, primal))
+      }
     }
-    return(max(0,primal))
-   }
+    directory <- Sys.getenv('JBES_LP_DIAGNOSTICS', file.path('results', 'lp_diagnostics'))
+    dir.create(directory, recursive = TRUE, showWarnings = FALSE)
+    file <- tempfile('failure_', directory, '.rds')
+    saveRDS(list(G = G, z = z, attempts = attempts), file)
+    stop('Gauge LP failed numerical certification; input retained in ', file)
   }
-  directory<-Sys.getenv('JBES_LP_DIAGNOSTICS',file.path('results','lp_diagnostics'))
-  dir.create(directory,recursive=TRUE,showWarnings=FALSE)
-  file<-tempfile('failure_',directory,'.rds')
-  saveRDS(list(G=G,z=z,attempts=attempts),file)
-  stop('Gauge LP failed numerical certification; input retained in ',file)
- }
 }
 
 normalize_hac_kernel <- function(kernel = "bartlett") {
@@ -115,7 +125,7 @@ csms_path <- function(psi_mat, m, T, gamma, L = NULL, kernel = "bartlett", ridge
   stopifnot(nrow(psi_mat) >= m + mT)
 
   psi_train <- psi_mat[1:m, , drop = FALSE]
-  psi_mon   <- psi_mat[(m+1):(m+mT), , drop = FALSE]
+  psi_mon <- psi_mat[(m + 1):(m + mT), , drop = FALSE]
 
   Gamma <- hac_lrv(psi_train, L = L, kernel = kernel)
   Gamma_inv <- inv_pd(Gamma, ridge = ridge)
@@ -145,4 +155,4 @@ compute_stop <- function(method, psi_mat, m, T, gamma, cval, ...) {
 }
 
 # Central package adapter; online wrappers above retain stopping definitions.
-source(file.path(Sys.getenv("JBES_PROJECT_ROOT",unset=getwd()),"07_aersn_backend.R"))
+source(file.path(Sys.getenv("JBES_PROJECT_ROOT", unset = getwd()), "07_aersn_backend.R"))

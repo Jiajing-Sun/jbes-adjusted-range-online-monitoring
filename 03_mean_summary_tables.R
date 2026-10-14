@@ -79,13 +79,13 @@ ensure_pkgs(c("data.table"), auto_install = AUTO_INSTALL)
 library(data.table)
 
 size_path <- file.path(RES_DIR, "mean_null_size.csv")
-alt_path  <- file.path(RES_DIR, "mean_alt_performance.csv")
+alt_path <- file.path(RES_DIR, "mean_alt_performance.csv")
 
 if (!file.exists(size_path)) stop("Missing: ", size_path)
-if (!file.exists(alt_path))  stop("Missing: ", alt_path)
+if (!file.exists(alt_path)) stop("Missing: ", alt_path)
 
 size_dt <- fread(size_path)
-alt_dt  <- fread(alt_path)
+alt_dt <- fread(alt_path)
 
 # --------
 # Size summary (wide): one row per (dgp,m,gamma,alpha,method), columns T
@@ -97,10 +97,12 @@ fwrite(size_wide, file.path(RES_DIR, "mean_null_size_wide.csv"))
 # Alt summary: keep both power_adj and ARL_adj (size-adjusted)
 # One row per (dgp,m,T,gamma,break_frac,change_type,Delta,method)
 # --------
-alt_keep <- alt_dt[, .(dgp,m,T,gamma,break_frac,change_type,Delta,method,
-                       PFA_pre_asym, PFA_pre_adj,
-                       DP_post_asym, DP_post_adj, CADD_asym, CADD_adj,
-                       power_asym, power_adj, ARL_asym, ARL_adj, ADD_asym, ADD_adj)]
+alt_keep <- alt_dt[, .(
+  dgp, m, T, gamma, break_frac, change_type, Delta, method,
+  PFA_pre_asym, PFA_pre_adj,
+  DP_post_asym, DP_post_adj, CADD_asym, CADD_adj,
+  power_asym, power_adj, ARL_asym, ARL_adj, ADD_asym, ADD_adj
+)]
 
 fwrite(alt_keep, file.path(RES_DIR, "mean_alt_performance_clean.csv"))
 
@@ -113,7 +115,8 @@ if (WRITE_LATEX) {
   ex <- size_dt[dgp == "DGP1" & abs(gamma - 0) < 1e-12 & abs(alpha - 0.05) < 1e-12]
   ex_w <- dcast(ex, m + method ~ T, value.var = "size")
   tex <- print(xtable(ex_w, digits = 3),
-               include.rownames = FALSE, sanitize.text.function = identity)
+    include.rownames = FALSE, sanitize.text.function = identity
+  )
   writeLines(tex, con = file.path(RES_DIR, "latex_example_mean_size_DGP1_g0_a05.tex"))
 }
 

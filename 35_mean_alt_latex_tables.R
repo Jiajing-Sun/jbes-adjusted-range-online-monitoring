@@ -89,13 +89,13 @@ fmt_pct <- function(x) {
 value_lookup <- function(dgp0, bf0, T0, Delta0, method0, chg0, gamma0) {
   sub <- dt[
     dgp == dgp0 &
-    m == M_MAIN &
-    abs(gamma - gamma0) < 1e-12 &
-    abs(break_frac - bf0) < 1e-12 &
-    T == T0 &
-    abs(Delta - Delta0) < 1e-12 &
-    change_type == chg0 &
-    method == method0
+      m == M_MAIN &
+      abs(gamma - gamma0) < 1e-12 &
+      abs(break_frac - bf0) < 1e-12 &
+      T == T0 &
+      abs(Delta - Delta0) < 1e-12 &
+      change_type == chg0 &
+      method == method0
   ]
   if (nrow(sub) == 0L) return("--")
   fmt_pct(sub$DP_post_adj[1])
@@ -327,13 +327,17 @@ for (gamma0 in c(0, 0.15)) {
 
 # Main-text / appendix companion tables for gamma = 0.15
 write_single_table(0.15, "early", "early break ($k^*=0.1mT$)", 0.1, EARLY_DELTA_GRID,
-                   change_types = "abrupt")
+  change_types = "abrupt"
+)
 write_single_table(0.15, "late", "late break ($k^*=0.8mT$)", 0.8, LATE_DELTA_GRID,
-                   change_types = "abrupt")
+  change_types = "abrupt"
+)
 write_single_table(0.15, "early", "early break ($k^*=0.1mT$)", 0.1, EARLY_DELTA_GRID,
-                   change_types = "smooth")
+  change_types = "smooth"
+)
 write_single_table(0.15, "late", "late break ($k^*=0.8mT$)", 0.8, LATE_DELTA_GRID,
-                   change_types = "smooth")
+  change_types = "smooth"
+)
 write_combined_smooth_table()
 
 msg("DONE.")

@@ -101,7 +101,7 @@ method_colours <- c(RSMS = "black", SSMS = "black", CSMS = "black")
 mean_theme <- theme_bw(base_size = 13) +
   theme(
     legend.position = "bottom",
-        legend.key.width = grid::unit(1.4, "cm"),
+    legend.key.width = grid::unit(1.4, "cm"),
     legend.title = element_blank(),
     strip.text = element_text(size = 10),
     plot.title = element_text(size = 13, face = "bold"),
@@ -113,8 +113,8 @@ for (dgp0 in DGP_FOCUS) {
     for (gamma0 in GAMMA_FOCUS) {
       dt1 <- dt[
         dgp == dgp0 &
-        m == m0 &
-        abs(gamma - gamma0) < 1e-12
+          m == m0 &
+          abs(gamma - gamma0) < 1e-12
       ]
 
       if (nrow(dt1) == 0L) next
@@ -141,15 +141,19 @@ for (dgp0 in DGP_FOCUS) {
       p1 <- ggplot(dt1, aes(x = Delta, y = DP_post_adj, group = method, linetype = method, shape = method)) +
         geom_line(linewidth = 0.7, colour = "black") +
         geom_point(size = 1.9, colour = "black") +
-        facet_wrap(~ panel, ncol = 3, scales = "free") +
-        labs(title = paste("Size-adjusted post-break detection probability vs \u0394", title_suffix),
-             x = "\u0394", y = "Post-break detection probability (size-adjusted)") +
+        facet_wrap(~panel, ncol = 3, scales = "free") +
+        labs(
+          title = paste("Size-adjusted post-break detection probability vs \u0394", title_suffix),
+          x = "\u0394", y = "Post-break detection probability (size-adjusted)"
+        ) +
         scale_linetype_manual(values = method_linetypes) +
         scale_shape_manual(values = method_shapes) +
         mean_theme
 
-      ggsave(filename = file.path(FIG_DIR, paste0("mean_power_adj_", tag, ".pdf")),
-             plot = p1, width = 13, height = 7.4)
+      ggsave(
+        filename = file.path(FIG_DIR, paste0("mean_power_adj_", tag, ".pdf")),
+        plot = p1, width = 13, height = 7.4
+      )
 
       dt_early <- dt1[timing == "Early break"]
       dt_late <- copy(dt1[timing == "Late break"])
@@ -157,15 +161,17 @@ for (dgp0 in DGP_FOCUS) {
       p2_early <- ggplot(dt_early, aes(x = Delta, y = CADD_adj, group = method, linetype = method, shape = method, colour = method)) +
         geom_line(linewidth = 0.7) +
         geom_point(size = 1.9) +
-        facet_wrap(~ spec, ncol = 3, scales = "free") +
+        facet_wrap(~spec, ncol = 3, scales = "free") +
         labs(
           title = "Early break",
           x = "\u0394",
           y = "CADD"
         ) +
         scale_colour_manual(values = method_colours) +
-        scale_y_continuous(breaks = scales::breaks_pretty(n = 3),
-                           expand = expansion(mult = c(0.08, 0.10))) +
+        scale_y_continuous(
+          breaks = scales::breaks_pretty(n = 3),
+          expand = expansion(mult = c(0.08, 0.10))
+        ) +
         scale_linetype_manual(values = method_linetypes) +
         scale_shape_manual(values = method_shapes) +
         mean_theme +
@@ -182,15 +188,17 @@ for (dgp0 in DGP_FOCUS) {
       p2_late <- ggplot(dt_late, aes(x = Delta, y = CADD_adj, group = method, linetype = method, shape = method, colour = method)) +
         geom_line(linewidth = 0.7) +
         geom_point(size = 1.9) +
-        facet_wrap(~ spec, ncol = 3, scales = "free") +
+        facet_wrap(~spec, ncol = 3, scales = "free") +
         labs(
           title = "Late break",
           x = "\u0394",
           y = "CADD"
         ) +
         scale_colour_manual(values = method_colours) +
-        scale_y_continuous(breaks = scales::breaks_pretty(n = 3),
-                           expand = expansion(mult = c(0.08, 0.10))) +
+        scale_y_continuous(
+          breaks = scales::breaks_pretty(n = 3),
+          expand = expansion(mult = c(0.08, 0.10))
+        ) +
         scale_linetype_manual(values = method_linetypes) +
         scale_shape_manual(values = method_shapes) +
         mean_theme +
@@ -208,21 +216,27 @@ for (dgp0 in DGP_FOCUS) {
         plot_layout(guides = "collect") &
         theme(legend.position = "bottom")
 
-      ggsave(filename = file.path(FIG_DIR, paste0("mean_ADD_adj_", tag, ".pdf")),
-             plot = p2, width = 8, height = 7.4)
+      ggsave(
+        filename = file.path(FIG_DIR, paste0("mean_ADD_adj_", tag, ".pdf")),
+        plot = p2, width = 8, height = 7.4
+      )
 
       p3 <- ggplot(dt1, aes(x = Delta, y = ARL_adj, group = method, linetype = method, shape = method)) +
         geom_line(linewidth = 0.7, colour = "black") +
         geom_point(size = 1.9, colour = "black") +
-        facet_wrap(~ panel, ncol = 3, scales = "free") +
-        labs(title = paste("ARL (size-adjusted) vs \u0394", title_suffix),
-             x = "\u0394", y = "ARL (unconditional delay)") +
+        facet_wrap(~panel, ncol = 3, scales = "free") +
+        labs(
+          title = paste("ARL (size-adjusted) vs \u0394", title_suffix),
+          x = "\u0394", y = "ARL (unconditional delay)"
+        ) +
         scale_linetype_manual(values = method_linetypes) +
         scale_shape_manual(values = method_shapes) +
         mean_theme
 
-      ggsave(filename = file.path(FIG_DIR, paste0("mean_ARL_adj_", tag, ".pdf")),
-             plot = p3, width = 13, height = 7.4)
+      ggsave(
+        filename = file.path(FIG_DIR, paste0("mean_ARL_adj_", tag, ".pdf")),
+        plot = p3, width = 13, height = 7.4
+      )
     }
   }
 }

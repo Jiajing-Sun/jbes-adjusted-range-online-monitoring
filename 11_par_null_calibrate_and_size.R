@@ -11,15 +11,15 @@ AUTO_INSTALL <- TRUE
 N_CORES <- 1L
 SEED_BASE <- 54321
 
-N_MC  <- 1000
+N_MC <- 1000
 N_CAL <- 1000
 
-M_GRID     <- c(100, 250, 500)
-T_GRID     <- c(1, 2, 5, 10)
+M_GRID <- c(100, 250, 500)
+T_GRID <- c(1, 2, 5, 10)
 GAMMA_GRID <- c(0, 0.15)
 ALPHA_SIZE <- c(0.05, 0.10)
 
-METHODS <- c("RSMS","SSMS","CSMS")
+METHODS <- c("RSMS", "SSMS", "CSMS")
 
 # Null parameters
 ALPHA1 <- 0.2
@@ -124,9 +124,10 @@ for (m in M_GRID) {
       for (method in METHODS) {
         c_asym[[method]] <- sapply(ALPHA_SIZE, function(a) {
           switch(method,
-                 "RSMS" = get_critical_value_rsms(d = 2, T = T, gamma = gamma, alpha_level = a),
-                 "SSMS" = get_critical_value_ssms(d = 2, T = T, gamma = gamma, alpha_level = a),
-                 "CSMS" = get_critical_value_csms(d = 2, T = T, gamma = gamma, alpha_level = a))
+            "RSMS" = get_critical_value_rsms(d = 2, T = T, gamma = gamma, alpha_level = a),
+            "SSMS" = get_critical_value_ssms(d = 2, T = T, gamma = gamma, alpha_level = a),
+            "CSMS" = get_critical_value_csms(d = 2, T = T, gamma = gamma, alpha_level = a)
+          )
         })
         names(c_asym[[method]]) <- as.character(ALPHA_SIZE)
       }
@@ -135,8 +136,8 @@ for (m in M_GRID) {
       one_rep_size <- function(i) {
         X <- sim_par1(n = m + mT + 1L, alpha = ALPHA1, lambda = LAMBDA1, burnin = 400)
 
-        fit <- par1_fit_mle(X_train = X[1:(m+1L)])
-        psi <- par1_score_matrix(X, alpha = fit$alpha, lambda = fit$lambda)  # (m+mT) x 2
+        fit <- par1_fit_mle(X_train = X[1:(m + 1L)])
+        psi <- par1_score_matrix(X, alpha = fit$alpha, lambda = fit$lambda) # (m+mT) x 2
 
         out <- numeric(length(METHODS) * length(ALPHA_SIZE))
         nm <- character(length(out))
@@ -155,7 +156,8 @@ for (m in M_GRID) {
       }
 
       reps <- par_lapply_safe(1:N_MC, one_rep_size,
-                              n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt)
+        n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt
+      )
       stop_mat <- do.call(rbind, reps)
 
       for (a in ALPHA_SIZE) {
@@ -174,15 +176,17 @@ for (m in M_GRID) {
       # Calibration for size-adjusted power (alpha=0.05)
       gen_psi <- function(i) {
         X <- sim_par1(n = m + mT + 1L, alpha = ALPHA1, lambda = LAMBDA1, burnin = 400)
-        fit <- par1_fit_mle(X_train = X[1:(m+1L)])
+        fit <- par1_fit_mle(X_train = X[1:(m + 1L)])
         par1_score_matrix(X, alpha = fit$alpha, lambda = fit$lambda)
       }
 
-      calib <- calibrate_critical_values(METHODS = METHODS, gen_psi = gen_psi,
-                                         m = m, T = T, gamma = gamma,
-                                         alpha = 0.05, N_CAL = N_CAL,
-                                         n_cores = N_CORES, seed = SEED_BASE + 9999L + 1000L * cnt,
-                                         tag = tag)
+      calib <- calibrate_critical_values(
+        METHODS = METHODS, gen_psi = gen_psi,
+        m = m, T = T, gamma = gamma,
+        alpha = 0.05, N_CAL = N_CAL,
+        n_cores = N_CORES, seed = SEED_BASE + 9999L + 1000L * cnt,
+        tag = tag
+      )
       calib_rows[[length(calib_rows) + 1L]] <- calib
     }
   }
@@ -191,7 +195,7 @@ for (m in M_GRID) {
 size_df <- do.call(rbind, size_rows)
 calib_df <- do.call(rbind, calib_rows)
 
-write.csv(size_df,  file.path(RES_DIR, "par_null_size.csv"), row.names = FALSE)
+write.csv(size_df, file.path(RES_DIR, "par_null_size.csv"), row.names = FALSE)
 write.csv(calib_df, file.path(RES_DIR, "par_null_calibration_cHat.csv"), row.names = FALSE)
 
 msg("Saved PAR null results to results/.")

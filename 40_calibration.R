@@ -20,8 +20,8 @@ calibrate_critical_values <- function(METHODS, gen_psi,
   one_rep <- function(i) {
     psi <- gen_psi(i)
     out <- sapply(METHODS, function(mm) {
-      if (mm == "RSMS" && ncol(psi) >= 3L && exists("rsms_maximum",mode="function")) {
-        rsms_maximum(psi,m,T,gamma)
+      if (mm == "RSMS" && ncol(psi) >= 3L && exists("rsms_maximum", mode = "function")) {
+        rsms_maximum(psi, m, T, gamma)
       } else max(compute_path(mm, psi, m, T, gamma))
     })
     out
@@ -33,13 +33,15 @@ calibrate_critical_values <- function(METHODS, gen_psi,
 
   qhat <- apply(maxmat, 2, function(z) as.numeric(quantile(z, probs = 1 - alpha, type = 8)))
 
-  data.frame(method = METHODS,
-             c_hat = as.numeric(qhat),
-             alpha = alpha,
-             m = m,
-             T = T,
-             gamma = gamma,
-             N_CAL = N_CAL,
-             tag = tag,
-             stringsAsFactors = FALSE)
+  data.frame(
+    method = METHODS,
+    c_hat = as.numeric(qhat),
+    alpha = alpha,
+    m = m,
+    T = T,
+    gamma = gamma,
+    N_CAL = N_CAL,
+    tag = tag,
+    stringsAsFactors = FALSE
+  )
 }

@@ -8,20 +8,20 @@
 rm(list = ls())
 
 AUTO_INSTALL <- TRUE
-N_CORES <- 1L         # set >1 for parallel (see README for notes)
+N_CORES <- 1L # set >1 for parallel (see README for notes)
 SEED_BASE <- 12345
 
-N_MC  <- 1000
+N_MC <- 1000
 N_CAL <- 1000
 
 # Design grids (baseline, q=2)
-DGP_GRID   <- c("DGP1","DGP2","DGP3","DGP4")
-M_GRID     <- c(100, 250, 500)
-T_GRID     <- c(1, 2, 5, 10)
+DGP_GRID <- c("DGP1", "DGP2", "DGP3", "DGP4")
+M_GRID <- c(100, 250, 500)
+T_GRID <- c(1, 2, 5, 10)
 GAMMA_GRID <- c(0, 0.15)
 ALPHA_SIZE <- c(0.05, 0.10)
 
-METHODS <- c("RSMS","SSMS","CSMS")
+METHODS <- c("RSMS", "SSMS", "CSMS")
 
 
 # --- bootstrap project root and source utilities ----------------------
@@ -113,7 +113,6 @@ for (dgp in DGP_GRID) {
   for (m in M_GRID) {
     for (T in T_GRID) {
       for (gamma in GAMMA_GRID) {
-
         cnt <- cnt + 1L
         tag <- sprintf("mean_%s_m%d_T%d_g%.2f", dgp, m, T, gamma)
         msg("Design point: ", tag)
@@ -125,9 +124,10 @@ for (dgp in DGP_GRID) {
         for (method in METHODS) {
           c_asym[[method]] <- sapply(ALPHA_SIZE, function(a) {
             switch(method,
-                   "RSMS" = get_critical_value_rsms(d = 2, T = T, gamma = gamma, alpha_level = a),
-                   "SSMS" = get_critical_value_ssms(d = 2, T = T, gamma = gamma, alpha_level = a),
-                   "CSMS" = get_critical_value_csms(d = 2, T = T, gamma = gamma, alpha_level = a))
+              "RSMS" = get_critical_value_rsms(d = 2, T = T, gamma = gamma, alpha_level = a),
+              "SSMS" = get_critical_value_ssms(d = 2, T = T, gamma = gamma, alpha_level = a),
+              "CSMS" = get_critical_value_csms(d = 2, T = T, gamma = gamma, alpha_level = a)
+            )
           })
           names(c_asym[[method]]) <- as.character(ALPHA_SIZE)
         }
@@ -156,10 +156,11 @@ for (dgp in DGP_GRID) {
         }
 
         reps <- par_lapply_safe(1:N_MC, one_rep_size,
-                                n_cores = N_CORES,
-                                seed = SEED_BASE + 1000L * cnt)
+          n_cores = N_CORES,
+          seed = SEED_BASE + 1000L * cnt
+        )
 
-        stop_mat <- do.call(rbind, reps)  # N_MC x (METHODS*ALPHA_SIZE)
+        stop_mat <- do.call(rbind, reps) # N_MC x (METHODS*ALPHA_SIZE)
 
         for (a in ALPHA_SIZE) {
           for (method in METHODS) {
@@ -182,12 +183,14 @@ for (dgp in DGP_GRID) {
           X <- sim_var1_dgp(dgp = dgp, n = m + mT, m_train = m, q = 2, burnin = 250)
           make_mean_psi(X, m, T)$psi
         }
-        calib <- calibrate_critical_values(METHODS = METHODS, gen_psi = gen_psi,
-                                           m = m, T = T, gamma = gamma,
-                                           alpha = 0.05, N_CAL = N_CAL,
-                                           n_cores = N_CORES,
-                                           seed = SEED_BASE + 9999L + 1000L * cnt,
-                                           tag = tag)
+        calib <- calibrate_critical_values(
+          METHODS = METHODS, gen_psi = gen_psi,
+          m = m, T = T, gamma = gamma,
+          alpha = 0.05, N_CAL = N_CAL,
+          n_cores = N_CORES,
+          seed = SEED_BASE + 9999L + 1000L * cnt,
+          tag = tag
+        )
         calib$dgp <- dgp
         calib_rows[[length(calib_rows) + 1L]] <- calib
       }
@@ -199,7 +202,7 @@ size_df <- do.call(rbind, size_rows)
 calib_df <- do.call(rbind, calib_rows)
 
 # Save
-size_path  <- file.path(RES_DIR, "mean_null_size.csv")
+size_path <- file.path(RES_DIR, "mean_null_size.csv")
 calib_path <- file.path(RES_DIR, "mean_null_calibration_cHat.csv")
 write.csv(size_df, size_path, row.names = FALSE)
 write.csv(calib_df, calib_path, row.names = FALSE)

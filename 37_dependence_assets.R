@@ -116,12 +116,20 @@ plot_dep <- function(sub_dt, x_var, x_lab, metric, ylab, file_stub, zoom_late = 
 }
 
 plot_dep(dt[exp == "VAR_phi"], "phi", expression(phi), "DP_post_adj",
-         expression(DP[post]), "dependence_VAR_power_adj", zoom_late = TRUE)
+  expression(DP[post]), "dependence_VAR_power_adj",
+  zoom_late = TRUE
+)
 plot_dep(dt[exp == "VAR_phi"], "phi", expression(phi), "CADD_adj",
-         "CADD", "dependence_VAR_ADD_adj", zoom_late = TRUE)
+  "CADD", "dependence_VAR_ADD_adj",
+  zoom_late = TRUE
+)
 plot_dep(dt[exp == "GARCH_persist"], "garch_persist", expression(alpha[1] + beta[1]), "DP_post_adj",
-         expression(DP[post]), "dependence_GARCH_power_adj", zoom_late = TRUE)
+  expression(DP[post]), "dependence_GARCH_power_adj",
+  zoom_late = TRUE
+)
 plot_dep(dt[exp == "GARCH_persist"], "garch_persist", expression(alpha[1] + beta[1]), "CADD_adj",
-         "CADD", "dependence_GARCH_ADD_adj", zoom_late = TRUE)
+  "CADD", "dependence_GARCH_ADD_adj",
+  zoom_late = TRUE
+)
 
 msg("DONE.")

@@ -11,10 +11,10 @@ N_CORES <- 1L
 SEED_BASE <- 33445
 
 N_CAL <- 1000
-N_MC  <- 1000
+N_MC <- 1000
 ALPHA <- 0.05
 
-METHODS <- c("RSMS","SSMS","CSMS")
+METHODS <- c("RSMS", "SSMS", "CSMS")
 
 # Base monitoring design
 m <- 500
@@ -28,8 +28,8 @@ q <- 2
 shift_vec <- rep(1, q)
 
 # Dependence configurations
-PHI_GRID <- round(seq(0.1, 0.9, by = 0.1), 2)       # VAR persistence
-GARCH_PERSIST <- round(seq(0.1, 0.9, by = 0.1), 2)  # alpha+beta (keep alpha fixed)
+PHI_GRID <- round(seq(0.1, 0.9, by = 0.1), 2) # VAR persistence
+GARCH_PERSIST <- round(seq(0.1, 0.9, by = 0.1), 2) # alpha+beta (keep alpha fixed)
 
 
 # --- bootstrap project root and source utilities ----------------------
@@ -128,24 +128,32 @@ for (phi in PHI_GRID) {
       msg("Calibrating (VAR): ", tag)
 
       gen_psi_null <- function(i) {
-        X <- sim_var1_dgp(dgp = "DGP2", n = m + mT, m_train = m, q = q,
-                          burnin = 300, phi = phi, cross = 0.1, rho = 0.1)
+        X <- sim_var1_dgp(
+          dgp = "DGP2", n = m + mT, m_train = m, q = q,
+          burnin = 300, phi = phi, cross = 0.1, rho = 0.1
+        )
         make_mean_psi(X, m, T)$psi
       }
-      c_hat_df <- calibrate_critical_values(METHODS = METHODS, gen_psi = gen_psi_null,
-                                            m = m, T = T, gamma = gamma,
-                                            alpha = ALPHA, N_CAL = N_CAL,
-                                            n_cores = N_CORES,
-                                            seed = SEED_BASE + 1000L + as.integer(phi * 100) + as.integer(100 * gamma),
-                                            tag = tag)
+      c_hat_df <- calibrate_critical_values(
+        METHODS = METHODS, gen_psi = gen_psi_null,
+        m = m, T = T, gamma = gamma,
+        alpha = ALPHA, N_CAL = N_CAL,
+        n_cores = N_CORES,
+        seed = SEED_BASE + 1000L + as.integer(phi * 100) + as.integer(100 * gamma),
+        tag = tag
+      )
       c_hat_map <- setNames(c_hat_df$c_hat, c_hat_df$method)
 
       msg("Power (VAR): ", tag)
       one_rep <- function(i) {
-        X <- sim_var1_dgp(dgp = "DGP2", n = m + mT, m_train = m, q = q,
-                          burnin = 300, phi = phi, cross = 0.1, rho = 0.1)
-        Y <- apply_mean_change(X, m, T, k_star = k_star, Delta = DELTA,
-                               shift_vec = shift_vec, type = CHANGE_TYPE)
+        X <- sim_var1_dgp(
+          dgp = "DGP2", n = m + mT, m_train = m, q = q,
+          burnin = 300, phi = phi, cross = 0.1, rho = 0.1
+        )
+        Y <- apply_mean_change(X, m, T,
+          k_star = k_star, Delta = DELTA,
+          shift_vec = shift_vec, type = CHANGE_TYPE
+        )
         psi <- make_mean_psi(Y, m, T)$psi
         sapply(METHODS, function(method) {
           Mvec <- compute_path(method, psi, m, T, gamma)
@@ -154,7 +162,8 @@ for (phi in PHI_GRID) {
       }
 
       reps <- par_lapply_safe(1:N_MC, one_rep,
-                              n_cores = N_CORES, seed = SEED_BASE + 5000L + as.integer(phi * 100) + cnt)
+        n_cores = N_CORES, seed = SEED_BASE + 5000L + as.integer(phi * 100) + cnt
+      )
       stop_mat <- do.call(rbind, reps)
       colnames(stop_mat) <- METHODS
 
@@ -193,26 +202,34 @@ for (persist in GARCH_PERSIST) {
       msg("Calibrating (GARCH): ", tag)
 
       gen_psi_null <- function(i) {
-        X <- sim_var1_dgp(dgp = "DGP3", n = m + mT, m_train = m, q = q,
-                          burnin = 400, phi = 0.5, cross = 0.1, rho = 0.1,
-                          garch_alpha = garch_alpha, garch_beta = garch_beta)
+        X <- sim_var1_dgp(
+          dgp = "DGP3", n = m + mT, m_train = m, q = q,
+          burnin = 400, phi = 0.5, cross = 0.1, rho = 0.1,
+          garch_alpha = garch_alpha, garch_beta = garch_beta
+        )
         make_mean_psi(X, m, T)$psi
       }
-      c_hat_df <- calibrate_critical_values(METHODS = METHODS, gen_psi = gen_psi_null,
-                                            m = m, T = T, gamma = gamma,
-                                            alpha = ALPHA, N_CAL = N_CAL,
-                                            n_cores = N_CORES,
-                                            seed = SEED_BASE + 20000L + as.integer(persist * 100) + as.integer(100 * gamma),
-                                            tag = tag)
+      c_hat_df <- calibrate_critical_values(
+        METHODS = METHODS, gen_psi = gen_psi_null,
+        m = m, T = T, gamma = gamma,
+        alpha = ALPHA, N_CAL = N_CAL,
+        n_cores = N_CORES,
+        seed = SEED_BASE + 20000L + as.integer(persist * 100) + as.integer(100 * gamma),
+        tag = tag
+      )
       c_hat_map <- setNames(c_hat_df$c_hat, c_hat_df$method)
 
       msg("Power (GARCH): ", tag)
       one_rep <- function(i) {
-        X <- sim_var1_dgp(dgp = "DGP3", n = m + mT, m_train = m, q = q,
-                          burnin = 400, phi = 0.5, cross = 0.1, rho = 0.1,
-                          garch_alpha = garch_alpha, garch_beta = garch_beta)
-        Y <- apply_mean_change(X, m, T, k_star = k_star, Delta = DELTA,
-                               shift_vec = shift_vec, type = CHANGE_TYPE)
+        X <- sim_var1_dgp(
+          dgp = "DGP3", n = m + mT, m_train = m, q = q,
+          burnin = 400, phi = 0.5, cross = 0.1, rho = 0.1,
+          garch_alpha = garch_alpha, garch_beta = garch_beta
+        )
+        Y <- apply_mean_change(X, m, T,
+          k_star = k_star, Delta = DELTA,
+          shift_vec = shift_vec, type = CHANGE_TYPE
+        )
         psi <- make_mean_psi(Y, m, T)$psi
         sapply(METHODS, function(method) {
           Mvec <- compute_path(method, psi, m, T, gamma)
@@ -221,7 +238,8 @@ for (persist in GARCH_PERSIST) {
       }
 
       reps <- par_lapply_safe(1:N_MC, one_rep,
-                              n_cores = N_CORES, seed = SEED_BASE + 30000L + as.integer(persist * 100) + cnt)
+        n_cores = N_CORES, seed = SEED_BASE + 30000L + as.integer(persist * 100) + cnt
+      )
       stop_mat <- do.call(rbind, reps)
       colnames(stop_mat) <- METHODS
 

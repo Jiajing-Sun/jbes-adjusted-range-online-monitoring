@@ -14,17 +14,17 @@ SEED_BASE <- 24680
 N_MC_ALT <- 1000
 
 # Design (baseline q=2)
-DGP_GRID   <- c("DGP1","DGP2","DGP3","DGP4")
-M_GRID     <- c(100, 250, 500)
-T_GRID     <- c(1, 2, 5)       # alternatives: focus on shorter horizons
+DGP_GRID <- c("DGP1", "DGP2", "DGP3", "DGP4")
+M_GRID <- c(100, 250, 500)
+T_GRID <- c(1, 2, 5) # alternatives: focus on shorter horizons
 GAMMA_GRID <- c(0, 0.15)
 
-BREAK_FRAC <- c(0.1, 0.8)      # early vs late (close to horizon end)
+BREAK_FRAC <- c(0.1, 0.8) # early vs late (close to horizon end)
 CHANGE_TYPES <- c("abrupt", "smooth")
 EARLY_DELTA_GRID <- c(0.25, 0.50, 0.75, 1.00)
-LATE_DELTA_GRID  <- c(0.50, 1.00, 1.50, 2.00)
+LATE_DELTA_GRID <- c(0.50, 1.00, 1.50, 2.00)
 
-METHODS <- c("RSMS","SSMS","CSMS")
+METHODS <- c("RSMS", "SSMS", "CSMS")
 ALPHA <- 0.05
 
 # Paths
@@ -86,7 +86,7 @@ bootstrap_find_root <- function() {
 ROOT <- bootstrap_find_root()
 source(file.path(ROOT, "00_utils.R"))
 jbes_set_root(ROOT)
-source(file.path(ROOT,"08_mc_audit.R"))
+source(file.path(ROOT, "08_mc_audit.R"))
 msg("Project root: ", ROOT)
 
 N_CORES <- env_int("JBES_N_CORES", N_CORES)
@@ -120,13 +120,15 @@ calib_df <- subset(calib_df, abs(alpha - ALPHA) < 1e-12)
 
 get_c_hat <- function(dgp0, m0, T0, gamma0, method0) {
   sub <- calib_df[calib_df$dgp == dgp0 &
-                    calib_df$m == m0 &
-                    calib_df$T == T0 &
-                    abs(calib_df$gamma - gamma0) < 1e-12 &
-                    calib_df$method == method0, ]
+    calib_df$m == m0 &
+    calib_df$T == T0 &
+    abs(calib_df$gamma - gamma0) < 1e-12 &
+    calib_df$method == method0, ]
   if (nrow(sub) != 1) {
-    stop("Missing or duplicate calibration for: ",
-         paste(dgp0, m0, T0, gamma0, method0, sep = " / "))
+    stop(
+      "Missing or duplicate calibration for: ",
+      paste(dgp0, m0, T0, gamma0, method0, sep = " / ")
+    )
   }
   sub$c_hat[1]
 }
@@ -150,18 +152,21 @@ for (dgp in DGP_GRID) {
 
           for (chg in CHANGE_TYPES) {
             for (Delta in delta_grid) {
-
               cnt <- cnt + 1L
-              tag <- sprintf("mean_alt_%s_m%d_T%d_g%.2f_bf%.1f_%s_D%.2f",
-                             dgp, m, T, gamma, bf, chg, Delta)
+              tag <- sprintf(
+                "mean_alt_%s_m%d_T%d_g%.2f_bf%.1f_%s_D%.2f",
+                dgp, m, T, gamma, bf, chg, Delta
+              )
               msg("Design: ", tag)
 
               # One replication under H1
               one_rep <- function(i) {
                 X <- sim_var1_dgp(dgp = dgp, n = m + mT, m_train = m, q = 2, burnin = 250)
-                shift_vec <- rep(1, 2)  # matches main text
-                Y <- apply_mean_change(X, m, T, k_star = k_star, Delta = Delta,
-                                       shift_vec = shift_vec, type = chg)
+                shift_vec <- rep(1, 2) # matches main text
+                Y <- apply_mean_change(X, m, T,
+                  k_star = k_star, Delta = Delta,
+                  shift_vec = shift_vec, type = chg
+                )
                 psi <- make_mean_psi(Y, m, T)$psi
 
                 # store per method
@@ -171,29 +176,42 @@ for (dgp in DGP_GRID) {
                   max_stat <- max(Mvec)
 
                   c_asym <- switch(method,
-                                   "RSMS" = get_critical_value_rsms(d = 2, T = T, gamma = gamma, alpha_level = ALPHA),
-                                   "SSMS" = get_critical_value_ssms(d = 2, T = T, gamma = gamma, alpha_level = ALPHA),
-                                   "CSMS" = get_critical_value_csms(d = 2, T = T, gamma = gamma, alpha_level = ALPHA))
+                    "RSMS" = get_critical_value_rsms(d = 2, T = T, gamma = gamma, alpha_level = ALPHA),
+                    "SSMS" = get_critical_value_ssms(d = 2, T = T, gamma = gamma, alpha_level = ALPHA),
+                    "CSMS" = get_critical_value_csms(d = 2, T = T, gamma = gamma, alpha_level = ALPHA)
+                  )
                   stop_asym <- first_exceed(Mvec, c_asym)
 
                   c_hat <- get_c_hat(dgp, m, T, gamma, method)
                   stop_adj <- first_exceed(Mvec, c_hat)
 
-                  out[[method]] <- c(max_stat = max_stat,
-                                     stop_asym = stop_asym,
-                                     stop_adj  = stop_adj)
+                  out[[method]] <- c(
+                    max_stat = max_stat,
+                    stop_asym = stop_asym,
+                    stop_adj = stop_adj
+                  )
                 }
                 out
               }
 
-              reps <- par_lapply_safe(1:N_MC_ALT, one_rep,
-                                      n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt)
+              # Resume only after independently verifying unchanged inputs and streams.
+              checkpoint <- file.path(RES_DIR, 'event_audit', paste0(tag, '.rds'))
+              if (identical(Sys.getenv('JBES_RESUME_VERIFIED'), '1') && file.exists(checkpoint)) {
+                saved <- readRDS(checkpoint)
+                stopifnot(
+                  identical(saved$tag, tag), saved$k_star == k_star,
+                  saved$horizon == mT, length(saved$replications) == N_MC_ALT
+                )
+                reps <- saved$replications
+              } else reps <- par_lapply_safe(1:N_MC_ALT, one_rep,
+                n_cores = N_CORES, seed = SEED_BASE + 1000L * cnt
+              )
 
-              save_mc_event_audit(reps,METHODS,k_star,mT,tag)
+              save_mc_event_audit(reps, METHODS, k_star, mT, tag)
 
               for (method in METHODS) {
                 stop_asym <- sapply(reps, function(rr) rr[[method]]["stop_asym"])
-                stop_adj  <- sapply(reps, function(rr) rr[[method]]["stop_adj"])
+                stop_adj <- sapply(reps, function(rr) rr[[method]]["stop_adj"])
 
                 metrics_asym <- detection_metrics(stop_asym, k_star, mT)
                 metrics_adj <- detection_metrics(stop_adj, k_star, mT)
@@ -204,7 +222,7 @@ for (dgp in DGP_GRID) {
                   change_type = chg, Delta = Delta,
                   method = method,
                   power_asym = metrics_asym["DP_horizon"],
-                  power_adj  = metrics_adj["DP_horizon"],
+                  power_adj = metrics_adj["DP_horizon"],
                   PFA_pre_asym = metrics_asym["PFA_pre"],
                   PFA_pre_adj = metrics_adj["PFA_pre"],
                   DP_post_asym = metrics_asym["DP_post"],
@@ -212,14 +230,13 @@ for (dgp in DGP_GRID) {
                   CADD_asym = metrics_asym["CADD"],
                   CADD_adj = metrics_adj["CADD"],
                   ARL_asym = metrics_asym["ARL_excess"],
-                  ARL_adj  = metrics_adj["ARL_excess"],
+                  ARL_adj = metrics_adj["ARL_excess"],
                   ADD_asym = metrics_asym["ADD_excess"],
-                  ADD_adj  = metrics_adj["ADD_excess"],
+                  ADD_adj = metrics_adj["ADD_excess"],
                   N = N_MC_ALT,
                   stringsAsFactors = FALSE
                 )
               }
-
             }
           }
         }

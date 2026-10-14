@@ -4,7 +4,7 @@
 
 # Helper: Toeplitz covariance with parameter rho
 toeplitz_cov <- function(q, rho) {
-  mat <- outer(1:q, 1:q, function(i, j) rho^(abs(i-j)))
+  mat <- outer(1:q, 1:q, function(i, j) rho^(abs(i - j)))
   mat
 }
 
@@ -12,9 +12,9 @@ toeplitz_cov <- function(q, rho) {
 band_adj <- function(q) {
   A <- matrix(0, q, q)
   if (q >= 2) {
-    for (i in 1:(q-1)) {
-      A[i, i+1] <- 1
-      A[i+1, i] <- 1
+    for (i in 1:(q - 1)) {
+      A[i, i + 1] <- 1
+      A[i + 1, i] <- 1
     }
   }
   A
@@ -40,36 +40,55 @@ sim_var1_dgp <- function(dgp, n, m_train, q = 2,
                          garch_alpha = 0.1, garch_beta = 0.2,
                          vol_shift_delta = 0.2,
                          seed = NULL) {
-
   if (!is.null(seed)) set.seed(seed)
 
   dgp <- toupper(dgp)
   Psi <- switch(dgp,
-                "DGP1" = phi * diag(q),
-                "DGP2" = make_Psi(q, phi = phi, cross = cross),
-                "DGP3" = make_Psi(q, phi = phi, cross = cross),
-                "DGP4" = make_Psi(q, phi = phi, cross = cross),
-                stop("Unknown dgp: ", dgp))
+    "DGP1" = phi * diag(q),
+    "DGP2" = make_Psi(q, phi = phi, cross = cross),
+    "DGP3" = make_Psi(q, phi = phi, cross = cross),
+    "DGP4" = make_Psi(q, phi = phi, cross = cross),
+    stop("Unknown dgp: ", dgp)
+  )
 
   # error covariance baseline
   Sigma_eps <- switch(dgp,
-                      "DGP1" = diag(q),
-                      "DGP2" = toeplitz_cov(q, rho),
-                      "DGP3" = diag(q),
-                      "DGP4" = toeplitz_cov(q, rho))
+    "DGP1" = diag(q),
+    "DGP2" = toeplitz_cov(q, rho),
+    "DGP3" = diag(q),
+    "DGP4" = toeplitz_cov(q, rho)
+  )
 
-  # precompute Cholesky for correlated errors
-  chol_Sigma <- chol(Sigma_eps)
+  # R returns an upper triangular factor U with t(U) %*% U = Sigma_eps.
+  # Innovations are column vectors, so use the lower factor t(U).
+  # Using U directly would instead generate covariance U %*% t(U).
+  chol_Sigma <- t(chol(Sigma_eps))
 
   Ntot <- n + burnin
   X <- matrix(0, Ntot, q)
 
-  if (dgp %in% c("DGP1", "DGP2")) {
-    for (t in 2:Ntot) {
-      z <- rnorm(q)
-      eps <- as.numeric(chol_Sigma %*% z)
-      X[t, ] <- as.numeric(Psi %*% X[t-1, ]) + eps
+  if (dgp %in% c("DGP1", "DGP2", "DGP4")) {
+    # Draw in the same time-major order as repeated rnorm(q) calls. The first
+    # state is zero, so it consumes no innovation. Row-vector multiplication
+    # by t(chol_Sigma) is equivalent to chol_Sigma %*% z for each column draw.
+    innovations <- matrix(rnorm((Ntot - 1L) * q), Ntot - 1L, q, byrow = TRUE) %*% t(chol_Sigma)
+    if (dgp == "DGP4") {
+      effective_time <- (2:Ntot) - burnin
+      innovations <- innovations * ifelse(effective_time > floor(m_train / 2),
+        sqrt(1 + vol_shift_delta), 1
+      )
     }
+    # Psi is symmetric in all listed designs. Rotate to its orthogonal
+    # eigenbasis and apply scalar AR recursions in compiled stats::filter.
+    # This preserves the model and random draws while avoiding a slow R loop.
+    # A direct-recursion comparison checks numerical equivalence separately.
+    decomposition <- eigen(Psi, symmetric = TRUE)
+    rotated <- rbind(rep(0, q), innovations %*% decomposition$vectors)
+    for (j in seq_len(q)) rotated[, j] <- as.numeric(stats::filter(
+      rotated[, j],
+      filter = decomposition$values[j], method = "recursive"
+    ))
+    X <- rotated %*% t(decomposition$vectors)
   }
 
   if (dgp == "DGP3") {
@@ -78,30 +97,17 @@ sim_var1_dgp <- function(dgp, n, m_train, q = 2,
     eps_mat <- matrix(0, Ntot, q)
     c0 <- 1 - garch_alpha - garch_beta
     for (t in 2:Ntot) {
-      z <- rnorm(q)  # independent innovations
-      sig2[t, ] <- c0 + garch_alpha * (eps_mat[t-1, ]^2) + garch_beta * sig2[t-1, ]
+      z <- rnorm(q) # independent innovations
+      sig2[t, ] <- c0 + garch_alpha * (eps_mat[t - 1, ]^2) + garch_beta * sig2[t - 1, ]
       eps <- sqrt(sig2[t, ]) * z
       eps_mat[t, ] <- eps
-      X[t, ] <- as.numeric(Psi %*% X[t-1, ]) + eps
+      X[t, ] <- as.numeric(Psi %*% X[t - 1, ]) + eps
     }
   }
 
-  if (dgp == "DGP4") {
-    # unconditional variance shift (stress test): scale factor after m_train/2 (in *original* time)
-    # The shift time is defined relative to the training size m_train.
-    shift_time <- floor(m_train / 2)
-    for (t in 2:Ntot) {
-      z <- rnorm(q)
-      eps0 <- as.numeric(chol_Sigma %*% z)
-      t_eff <- t - burnin
-      scale_fac <- if (t_eff > shift_time) sqrt(1 + vol_shift_delta) else 1
-      eps <- scale_fac * eps0
-      X[t, ] <- as.numeric(Psi %*% X[t-1, ]) + eps
-    }
-  }
 
   # drop burnin
-  X_use <- X[(burnin+1):Ntot, , drop = FALSE]
+  X_use <- X[(burnin + 1):Ntot, , drop = FALSE]
   stopifnot(nrow(X_use) == n)
   X_use
 }
