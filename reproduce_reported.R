@@ -41,6 +41,8 @@ plan <- list(
   step('dgp_screen_profile', '33_dgp_exploration.R', 2L, c(JBES_DGP_PHASE = 'screen', JBES_DGP_SET = 'profile'), 220261016),
   step('dgp_confirmation_profile', '33_dgp_exploration.R', 2L, c(JBES_DGP_PHASE = 'confirm', JBES_DGP_SET = 'profile'), 1220261016),
   step('dgp_report', '34_dgp_comparison_report.R'),
+  step('dgp_focused_screen', '50_focused_dgp_search.R', 2L, c(JBES_DGP_PHASE = 'screen'), 700000000),
+  step('dgp_focused_confirmation', '50_focused_dgp_search.R', 2L, c(JBES_DGP_PHASE = 'confirm'), 1700000000),
   step('persistent_assets', '49_persistent_assets.R'),
   step('bandwidth', '24_csms_bandwidth_sensitivity.R', 1L, seed = 97531),
   step('bandwidth_assets', '41_csms_bandwidth_assets.R'),

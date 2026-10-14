@@ -57,6 +57,7 @@ The driver fixes production replication and worker counts to preserve recorded s
 | `50_empirical_utils.R`, `31_empirical_plots.R`, `32_empirical_monitoring_table.R`, `34_empirical_bootstrap_check.R`, `35_empirical_calibration_details.R` | USD/GBP preprocessing, monitoring and bootstrap |
 | `30_scalar_theory_checks.R`, `31_bivariate_theory_checks.R` | Independent same-contaminated-null calibration and checks of the new scalar and directional propositions |
 | `33_dgp_exploration.R` | Complete DGP screening grid and independent confirmation with automatic HAC controls |
+| `50_focused_dgp_search.R` | Follow-up model, weight and direction screening with a frozen independent confirmation |
 | `34_dgp_comparison_report.R` | Confirmation report for scenarios frozen by screening, retaining automatic-HAC comparisons and null checks |
 | `32_theory_assets.R` | Tables and plots from saved theory-check outputs |
 | `08_mc_audit.R` | First-crossing counts and paired Monte Carlo uncertainty |
@@ -97,7 +98,16 @@ Rscript reproduce_reported.R --stage dgp_confirmation_profile
 Rscript reproduce_reported.R --stage dgp_report
 ```
 
-PAR null, moderate-dimensional and persistent-training checkpoints include design and implementation manifests. A mismatch stops the run instead of reusing stale paths. Mean innovations use compiled scalar recursions in an orthogonal eigenbasis; direct-recursion checks confirm the same random draws and agreement to numerical precision.
+The additional `dgp_focused_screen` stage was designed after inspecting the earlier results. It crosses seven models with two monitoring weights, including an iid reference, two stable triangular VAR models and four full-rank training-mean profiles. Each setting evaluates nine directions, three local effect magnitudes and two change locations. All five methods, including both automatic HAC controls, participate in screening. The top three distinct model/weight settings and their exact alternatives are frozen for `dgp_focused_confirmation`, using fresh calibration and evaluation draws at both training lengths. The full follow-up grid remains available; it must not be relabeled as a prespecified confirmation of the earlier search.
+
+```sh
+Rscript reproduce_reported.R --stage dgp_focused_screen
+Rscript reproduce_reported.R --stage dgp_focused_confirmation
+```
+
+The focused search uses 1,000 calibration, 1,000 independent null and 1,000 alternative paths per screening setting. Confirmation uses 10,000 calibration, 5,000 null and 5,000 alternative paths. Model-specific thresholds are oracle simulation comparisons. Every method uses the same evaluation paths; first crossings distinguish pre-change alarms, post-change detections and no crossing. Paired errors condition on the estimated thresholds. Phase checkpoints include source hashes, design, replication counts and package versions and refuse inconsistent reuse.
+
+PAR null and alternative, moderate-dimensional and persistent-training checkpoints include design and implementation manifests. The PAR alternative cache uses a versioned directory so earlier files without manifests remain intact and are not silently reused. A mismatch stops the run instead of reusing stale paths. Mean innovations use compiled scalar recursions in an orthogonal eigenbasis; direct-recursion checks confirm the same random draws and agreement to numerical precision.
 
 The optional `JBES_RESUME_VERIFIED=1` switch in the mean and bivariate scripts is for locally saved checkpoints only after the design, seeds, implementation and thresholds have been verified unchanged. It is off by default. Do not reuse arbitrary earlier output.
 

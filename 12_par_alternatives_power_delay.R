@@ -135,12 +135,52 @@ get_c_hat <- function(m0, T0, gamma0, method0) {
 
 msg("Starting ALT simulations (PAR(1))")
 
-CHECK_DIR <- file.path(RES_DIR, "par_alternative_checkpoints")
+# A versioned cache keeps earlier unverified files intact. Every design,
+# replication count and random-stream choice must match before reuse.
+CHECK_DIR <- file.path(RES_DIR, "par_alternative_checkpoints_v2")
 dir.create(CHECK_DIR, recursive = TRUE, showWarnings = FALSE)
+manifest <- list(
+  m = M_GRID, T = T_GRID, gamma = GAMMA_GRID, break_fraction = BREAK_FRAC,
+  change_type = CHANGE_TYPES, alpha2 = ALPHA2_GRID, lambda2 = LAMBDA2_GRID,
+  base_parameter = c(ALPHA1, LAMBDA1), alpha = ALPHA, methods = METHODS,
+  N = N_MC_ALT, workers = N_CORES, seed = SEED_BASE, R = R.version.string,
+  aersn = as.character(packageVersion("aersn")),
+  highs = as.character(packageVersion("highs")),
+  source = unname(tools::md5sum(c(
+    file.path(ROOT, c(
+      "00_utils.R",
+      "01_critical_values.R", "02_methods.R", "07_aersn_backend.R",
+      "08_mc_audit.R", "20_dgps_par1.R"
+    )),
+    file.path(ROOT, "12_par_alternatives_power_delay.R")
+  ))),
+  reference = unname(tools::md5sum(file.path(
+    RES_DIR,
+    c("affine_finite_critical_values.csv", "par_null_calibration_cHat.csv")
+  )))
+)
+stopifnot(!anyNA(manifest$source), !anyNA(manifest$reference))
+manifest_path <- file.path(CHECK_DIR, "manifest.rds")
+if (file.exists(manifest_path)) {
+  if (!identical(readRDS(manifest_path), manifest))
+    stop("PAR alternative checkpoint manifest differs; use a fresh results directory.")
+} else {
+  if (length(list.files(CHECK_DIR, pattern = "\\.rds$")))
+    stop("Unverified PAR alternative checkpoints found; preserve them before restarting.")
+  saveRDS(manifest, manifest_path)
+}
 checkpoint_par <- function(tag, expr) {
   path <- file.path(CHECK_DIR, paste0(tag, ".rds"))
-  if (file.exists(path)) return(readRDS(path))
-  value <- force(expr);saveRDS(value, path);value
+  if (file.exists(path)) {
+    value <- readRDS(path)
+    stopifnot(is.list(value), length(value) == N_MC_ALT)
+    return(value)
+  }
+  value <- force(expr)
+  stopifnot(is.list(value), length(value) == N_MC_ALT)
+  temporary <- paste0(path, ".tmp");saveRDS(value, temporary)
+  if (!file.rename(temporary, path)) stop("Cannot save PAR alternative checkpoint: ", path)
+  value
 }
 perf_rows <- list()
 cnt <- 0L
