@@ -1,0 +1,5 @@
+# Keep the published tree source-only, including after a local simulation run.
+*
+!/*.R
+!/readme.md
+!/.gitignore
